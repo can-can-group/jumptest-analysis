@@ -170,6 +170,37 @@
     .phase-name { font-weight: 500; color: var(--text); }
     .phase-time, .kp-value { color: var(--muted); font-size: 0.85em; }
     .empty { color: var(--muted); text-align: center; padding: 2rem; }
+    .comparison-container { display: none; margin-top: 1.5rem; }
+    .comparison-container.visible { display: block; }
+    .comparison-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .comparison-row { grid-template-columns: 1fr; } }
+    .trial-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .trial-card h3 { font-size: 0.95rem; margin: 0 0 0.5rem 0; color: var(--grey-dark); }
+    .trial-meta-compact { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.5rem; }
+    .trial-card .panel { padding: 0.75rem; }
+    .trial-card .panel h2 { font-size: 0.9rem; margin: 0 0 0.5rem 0; padding-bottom: 0.35rem; }
+    .trial-card .phase-list li, .trial-card .keypoint-list li { padding: 0.35rem 0; font-size: 0.85rem; }
+    .trial-card .metrics-grid { font-size: 0.8rem; }
+    .comparison-section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; color: var(--grey-dark); }
+    .delta-gain { color: #16a34a; font-weight: 500; }
+    .delta-loss { color: #dc2626; font-weight: 500; }
+    .delta-neutral { color: var(--muted); }
+    .comparison-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .comparison-table th, .comparison-table td { padding: 0.4rem 0.6rem; text-align: left; border-bottom: 1px solid var(--border); }
+    .comparison-table th { font-weight: 600; color: var(--grey-dark); }
+    .comparison-table .col-t1 { color: var(--muted); }
+    .comparison-table .col-t2 { color: var(--text); }
+    .comparison-table .col-delta { min-width: 6rem; }
+    .chart-wrap-trial2 { margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -180,7 +211,11 @@
     <div class="toolbar">
       <label>
         <input type="file" id="fileInput" accept=".json">
-        Load visualization JSON
+        Load trial
+      </label>
+      <label>
+        <input type="file" id="compareInput" accept=".json">
+        Compare with…
       </label>
     </div>
 
@@ -210,7 +245,16 @@
       </div>
     </div>
 
-    <p id="placeholder" class="empty">Load a JSON file exported with <code>--export output/viz.json</code> to visualize.</p>
+    <div id="comparisonContainer" class="comparison-container">
+      <div class="comparison-section-title">Trial 2 — Chart</div>
+      <div id="chartWrap2" class="chart-wrap chart-wrap-trial2" style="display: none;">
+        <canvas id="chart2"></canvas>
+      </div>
+      <div class="comparison-section-title" style="margin-top: 1.5rem;">Phases, key points & metrics — Trial 1 vs Trial 2</div>
+      <div id="comparisonTables" class="panel" style="margin-top: 0.5rem;"></div>
+    </div>
+
+    <p id="placeholder" class="empty">Load a JSON file exported with <code>--export output/viz.json</code> to visualize. Use “Compare with…” to load a second trial.</p>
   </div>
 
   <script>
@@ -254,10 +298,17 @@
     }
 
     let chartInstance = null;
+    let chartInstance2 = null;
 
     function formatTime(s) {
       if (s == null) return '—';
       return Number(s).toFixed(3) + ' s';
+    }
+    function formatDuration(s) {
+      if (s == null) return '—';
+      const n = Number(s);
+      if (n < 0) return '—';
+      return n.toFixed(3) + ' s';
     }
 
     function formatVal(v) {
@@ -295,6 +346,8 @@
         const color = getLineColorForPhase(p.name);
         const title = p.explanation ? ` title="${escapeAttr(p.explanation)}"` : '';
         const desc = p.explanation ? `<span class="item-desc">${escapeHtml(p.explanation)}</span>` : '';
+        const durationS = p.duration_s != null ? p.duration_s : (p.end_time_s != null && p.start_time_s != null ? p.end_time_s - p.start_time_s : null);
+        const durationStr = durationS != null ? ` · ${formatDuration(durationS)}` : '';
         return `
           <li${title}>
             <div class="row">
@@ -302,7 +355,7 @@
                 <span class="phase-dot" style="background:${color}"></span>
                 <span class="phase-name">${p.name}</span>
               </span>
-              <span class="phase-time">${formatTime(p.start_time_s)} → ${formatTime(p.end_time_s)}</span>
+              <span class="phase-time">${formatTime(p.start_time_s)} → ${formatTime(p.end_time_s)}${durationStr}</span>
             </div>
             ${desc}
           </li>
@@ -317,14 +370,16 @@
         return;
       }
       ul.innerHTML = keyPoints.map((kp, i) => {
+        const timeStr = formatTime(kp.time_s);
         const val = kp.value_N != null ? formatVal(kp.value_N) + ' N' : (kp.value_N_per_s != null ? formatVal(kp.value_N_per_s) + ' N/s' : '');
         const title = kp.explanation ? ` title="${escapeAttr(kp.explanation)}"` : '';
         const desc = kp.explanation ? `<span class="item-desc">${escapeHtml(kp.explanation)}</span>` : '';
+        const valueStr = val ? ` at ${timeStr} · ${val}` : ` at ${timeStr}`;
         return `
           <li${title}>
             <div class="row">
               <span class="phase-name">${kp.name}</span>
-              <span class="kp-value">${formatTime(kp.time_s)} ${val ? ' · ' + val : ''}</span>
+              <span class="kp-value">${valueStr}</span>
             </div>
             ${desc}
           </li>
@@ -343,6 +398,170 @@
 
     function metricLabel(key) {
       return key.replace(/_/g, ' ');
+    }
+
+    function getPhasesForDisplay(data) {
+      if (data.analysis && data.analysis.phases && data.analysis.phase_order) {
+        return data.analysis.phase_order
+          .map(slug => data.analysis.phases[slug])
+          .filter(Boolean)
+          .map(p => ({ ...p.value, explanation: p.explanation }));
+      }
+      return data.phases || [];
+    }
+
+    function getKeyPointsForDisplay(data) {
+      if (data.analysis && data.analysis.key_points && data.analysis.key_point_order) {
+        return data.analysis.key_point_order
+          .map(slug => data.analysis.key_points[slug])
+          .filter(Boolean)
+          .map(k => ({ ...k.value, explanation: k.explanation }));
+      }
+      return data.key_points || [];
+    }
+
+    function getMetricsForDisplay(data) {
+      return (data.analysis && data.analysis.metrics) ? data.analysis.metrics : null;
+    }
+
+    function buildTrialCardHtml(data, label) {
+      const phases = getPhasesForDisplay(data);
+      const keyPoints = getKeyPointsForDisplay(data);
+      const metricsObj = getMetricsForDisplay(data);
+      const meta = [
+        data.athlete_id ? `Athlete: ${data.athlete_id}` : '',
+        data.bodyweight_N != null ? `BW: ${formatVal(data.bodyweight_N)} N` : ''
+      ].filter(Boolean).join(' · ');
+      let phasesHtml = '';
+      if (phases.length === 0) {
+        phasesHtml = '<ul class="phase-list"><li class="empty">No phases</li></ul>';
+      } else {
+        phasesHtml = '<ul class="phase-list">' + phases.map((p) => {
+          const color = getLineColorForPhase(p.name);
+          const durationS = p.duration_s != null ? p.duration_s : (p.end_time_s != null && p.start_time_s != null ? p.end_time_s - p.start_time_s : null);
+          const durationStr = durationS != null ? ` · ${formatDuration(durationS)}` : '';
+          return `<li><div class="row"><span style="display:flex;align-items:center;"><span class="phase-dot" style="background:${color}"></span><span class="phase-name">${p.name}</span></span><span class="phase-time">${formatTime(p.start_time_s)} → ${formatTime(p.end_time_s)}${durationStr}</span></div></li>`;
+        }).join('') + '</ul>';
+      }
+      let kpHtml = '';
+      if (!keyPoints || keyPoints.length === 0) {
+        kpHtml = '<ul class="keypoint-list"><li class="empty">No key points</li></ul>';
+      } else {
+        kpHtml = '<ul class="keypoint-list">' + keyPoints.map((kp) => {
+          const timeStr = formatTime(kp.time_s);
+          const val = kp.value_N != null ? formatVal(kp.value_N) + ' N' : (kp.value_N_per_s != null ? formatVal(kp.value_N_per_s) + ' N/s' : '');
+          const valueStr = val ? ` at ${timeStr} · ${val}` : ` at ${timeStr}`;
+          return `<li><div class="row"><span class="phase-name">${kp.name}</span><span class="kp-value">${valueStr}</span></div></li>`;
+        }).join('') + '</ul>';
+      }
+      let metricsHtml = '';
+      if (!metricsObj || typeof metricsObj !== 'object') {
+        metricsHtml = '<ul class="metrics-grid"><li class="empty">No metrics</li></ul>';
+      } else {
+        const entries = Object.entries(metricsObj).sort((a, b) => a[0].localeCompare(b[0]));
+        metricsHtml = '<ul class="metrics-grid">' + entries.map(([key, item]) => {
+          const value = item && typeof item === 'object' && 'value' in item ? item.value : item;
+          const displayVal = value == null ? '—' : (typeof value === 'number' ? (Number.isInteger(value) ? value : formatVal(value)) : String(value));
+          return `<li><span class="metric-key">${metricLabel(key)}</span><span class="metric-value">${displayVal}</span></li>`;
+        }).join('') + '</ul>';
+      }
+      return `
+        <h3>${escapeHtml(label)}</h3>
+        <div class="trial-meta-compact">${escapeHtml(meta)}</div>
+        <div class="panel"><h2>Phases</h2>${phasesHtml}</div>
+        <div class="panel"><h2>Key points</h2>${kpHtml}</div>
+        <div class="panel"><h2>Metrics</h2>${metricsHtml}</div>
+      `;
+    }
+
+    function deltaClass(delta) {
+      if (delta == null || delta === 0) return 'delta-neutral';
+      return delta > 0 ? 'delta-gain' : 'delta-loss';
+    }
+
+    function formatDelta(delta, unit) {
+      if (delta == null || typeof delta !== 'number') return '—';
+      const sign = delta >= 0 ? '+' : '';
+      const u = unit ? ' ' + unit : '';
+      return sign + (Number.isInteger(delta) ? delta : delta.toFixed(3)) + u;
+    }
+
+    function buildComparisonTables(dataA, dataB) {
+      const phasesA = getPhasesForDisplay(dataA);
+      const phasesB = getPhasesForDisplay(dataB);
+      const kpA = getKeyPointsForDisplay(dataA);
+      const kpB = getKeyPointsForDisplay(dataB);
+      const metricsA = getMetricsForDisplay(dataA);
+      const metricsB = getMetricsForDisplay(dataB);
+
+      const phaseNames = [...new Set([...phasesA.map(p => p.name), ...phasesB.map(p => p.name)])];
+      const getDuration = (p) => p.duration_s != null ? p.duration_s : (p.end_time_s != null && p.start_time_s != null ? p.end_time_s - p.start_time_s : null);
+      let phasesRows = phaseNames.map(name => {
+        const pA = phasesA.find(p => p.name === name);
+        const pB = phasesB.find(p => p.name === name);
+        const d1 = pA ? getDuration(pA) : null;
+        const d2 = pB ? getDuration(pB) : null;
+        const delta = (d1 != null && d2 != null) ? d2 - d1 : null;
+        const cls = deltaClass(delta);
+        return `<tr><td>${escapeHtml(name)}</td><td class="col-t1">${d1 != null ? formatDuration(d1) : '—'}</td><td class="col-t2">${d2 != null ? formatDuration(d2) : '—'}</td><td class="col-delta ${cls}">${delta != null ? formatDelta(delta, 's') : '—'}</td></tr>`;
+      }).join('');
+
+      const kpNames = [...new Set([...(kpA || []).map(k => k.name), ...(kpB || []).map(k => k.name)])];
+      const kpRows = kpNames.map(name => {
+        const a = (kpA || []).find(k => k.name === name);
+        const b = (kpB || []).find(k => k.name === name);
+        const t1 = a ? (a.time_s != null ? formatTime(a.time_s) : '—') + (a.value_N != null ? ' · ' + formatVal(a.value_N) + ' N' : '') : '—';
+        const t2 = b ? (b.time_s != null ? formatTime(b.time_s) : '—') + (b.value_N != null ? ' · ' + formatVal(b.value_N) + ' N' : '') : '—';
+        let deltaHtml = '—';
+        if (a && b && a.time_s != null && b.time_s != null) {
+          const dt = b.time_s - a.time_s;
+          const dv = (a.value_N != null && b.value_N != null) ? b.value_N - a.value_N : null;
+          const parts = [formatDelta(dt, 's')];
+          if (dv != null) parts.push(formatDelta(dv, 'N'));
+          deltaHtml = `<span class="${deltaClass(dt)}">${parts[0]}</span>${dv != null ? ` <span class="${deltaClass(dv)}">${formatDelta(dv, 'N')}</span>` : ''}`;
+        }
+        return `<tr><td>${escapeHtml(name)}</td><td class="col-t1">${t1}</td><td class="col-t2">${t2}</td><td class="col-delta">${deltaHtml}</td></tr>`;
+      }).join('');
+
+      const allMetricKeys = [...new Set([...Object.keys(metricsA || {}), ...Object.keys(metricsB || {})])].sort((a, b) => a.localeCompare(b));
+      const getMetricVal = (obj, k) => {
+        if (!obj || !obj[k]) return null;
+        const v = obj[k];
+        return (v && typeof v === 'object' && 'value' in v) ? v.value : v;
+      };
+      const metricRows = allMetricKeys.map(key => {
+        const v1 = getMetricVal(metricsA, key);
+        const v2 = getMetricVal(metricsB, key);
+        const num1 = typeof v1 === 'number' ? v1 : null;
+        const num2 = typeof v2 === 'number' ? v2 : null;
+        const delta = (num1 != null && num2 != null) ? num2 - num1 : null;
+        const cls = deltaClass(delta);
+        const disp1 = v1 == null ? '—' : (typeof v1 === 'number' ? (Number.isInteger(v1) ? v1 : formatVal(v1)) : String(v1));
+        const disp2 = v2 == null ? '—' : (typeof v2 === 'number' ? (Number.isInteger(v2) ? v2 : formatVal(v2)) : String(v2));
+        return `<tr><td>${escapeHtml(metricLabel(key))}</td><td class="col-t1">${disp1}</td><td class="col-t2">${disp2}</td><td class="col-delta ${cls}">${delta != null ? formatDelta(delta, '') : '—'}</td></tr>`;
+      }).join('');
+
+      return `
+        <h3 style="font-size:0.95rem;margin:0 0 0.5rem 0;">Phases (duration)</h3>
+        <table class="comparison-table"><thead><tr><th>Phase</th><th>Trial 1</th><th>Trial 2</th><th>Change</th></tr></thead><tbody>${phasesRows}</tbody></table>
+        <h3 style="font-size:0.95rem;margin:1rem 0 0.5rem 0;">Key points</h3>
+        <table class="comparison-table"><thead><tr><th>Point</th><th>Trial 1</th><th>Trial 2</th><th>Change</th></tr></thead><tbody>${kpRows}</tbody></table>
+        <h3 style="font-size:0.95rem;margin:1rem 0 0.5rem 0;">Metrics</h3>
+        <table class="comparison-table"><thead><tr><th>Metric</th><th>Trial 1</th><th>Trial 2</th><th>Change</th></tr></thead><tbody>${metricRows}</tbody></table>
+      `;
+    }
+
+    function renderComparison(dataA, dataB) {
+      if (!dataA || !dataB) {
+        document.getElementById('comparisonContainer').classList.remove('visible');
+        document.getElementById('chartWrap2').style.display = 'none';
+        if (chartInstance2) { chartInstance2.destroy(); chartInstance2 = null; }
+        return;
+      }
+      document.getElementById('chartWrap2').style.display = 'block';
+      buildChart(dataB, 'chart2');
+      document.getElementById('comparisonTables').innerHTML = buildComparisonTables(dataA, dataB);
+      document.getElementById('comparisonContainer').classList.add('visible');
     }
 
     function renderMetricsList(metricsObj) {
@@ -383,7 +602,13 @@
       return pts;
     }
 
-    function buildChart(data) {
+    function buildChart(data, targetChartId) {
+      const canvasId = targetChartId || 'chart';
+      const canvasEl = document.getElementById(canvasId);
+      if (!canvasEl) return;
+      if (canvasId === 'chart2' && chartInstance2) { chartInstance2.destroy(); chartInstance2 = null; }
+      else if (!targetChartId && chartInstance) { chartInstance.destroy(); chartInstance = null; }
+
       const time = data.time_s;
       const force = data.force_N;
       const leftForce = data.left_force_N;
@@ -458,8 +683,14 @@
         };
       });
 
-      // Sub-phases (Unloading, Braking): dotted horizontal line from start to end; label at each end (no box, text only) to avoid clamping
-      const subPhaseLineY = yMaxForce * 0.92;
+      // Sub-phases (Unloading, Braking): dotted line and labels — place below P1/P2 when they are high to avoid overlap
+      const keyPointYs = (data.key_points || []).map(kp => kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0));
+      const highKeyPointYs = keyPointYs.filter(y => y > yMaxForce * 0.5);
+      const minHighKeyY = highKeyPointYs.length > 0 ? Math.min(...highKeyPointYs) : null;
+      const defaultSubY = yMaxForce * 0.92;
+      const subPhaseLineY = minHighKeyY != null
+        ? Math.max(yMaxForce * 0.5, Math.min(defaultSubY, minHighKeyY * 0.78))
+        : defaultSubY;
       [unloadingPhase, brakingPhase].filter(Boolean).forEach((p, i) => {
         const subLabel = p.name === 'Eccentric - Unloading' ? 'Unloading' : 'Braking';
         annotations[`line_sub_${i}`] = {
@@ -575,9 +806,7 @@
         };
       }
 
-      if (chartInstance) chartInstance.destroy();
-
-      const ctx = document.getElementById('chart').getContext('2d');
+      const ctx = canvasEl.getContext('2d');
       const datasets = [
         // Fill under curve (draw first so they sit behind the line)
         ...(eccentricFillPoints.length > 0 ? [{
@@ -632,7 +861,7 @@
         { label: 'Right force', data: rightPoints, borderColor: 'rgba(153, 153, 153, 0.6)', backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.1, borderDash: [4, 2], order: 2 }
       ];
 
-      chartInstance = new Chart(ctx, {
+      const newChart = new Chart(ctx, {
         type: 'line',
         data: { datasets },
         options: {
@@ -691,6 +920,25 @@
         plugins: (typeof ChartAnnotation !== 'undefined' ? [ChartAnnotation] : [])
       });
 
+      if (canvasId === 'chart2') chartInstance2 = newChart;
+      else chartInstance = newChart;
+
+      if (canvasId !== 'chart2') {
+        document.getElementById('chartWrap').style.display = 'block';
+        document.getElementById('sections').style.display = 'flex';
+        document.getElementById('placeholder').style.display = 'none';
+      }
+    }
+
+    let primaryData = null;
+    let compareData = null;
+
+    function applyPrimaryView(data) {
+      renderMeta(data);
+      renderPhaseList(getPhasesForDisplay(data));
+      renderKeypointList(getKeyPointsForDisplay(data));
+      renderMetricsList(getMetricsForDisplay(data));
+      buildChart(data);
       document.getElementById('chartWrap').style.display = 'block';
       document.getElementById('sections').style.display = 'flex';
       document.getElementById('placeholder').style.display = 'none';
@@ -703,31 +951,27 @@
       r.onload = () => {
         try {
           const data = JSON.parse(r.result);
-          renderMeta(data);
-          if (data.analysis && data.analysis.phases && data.analysis.phase_order) {
-            const phasesForList = data.analysis.phase_order
-              .map(slug => data.analysis.phases[slug])
-              .filter(Boolean)
-              .map(p => ({ ...p.value, explanation: p.explanation }));
-            renderPhaseList(phasesForList);
-          } else {
-            renderPhaseList(data.phases || []);
-          }
-          if (data.analysis && data.analysis.key_points && data.analysis.key_point_order) {
-            const keyPointsForList = data.analysis.key_point_order
-              .map(slug => data.analysis.key_points[slug])
-              .filter(Boolean)
-              .map(k => ({ ...k.value, explanation: k.explanation }));
-            renderKeypointList(keyPointsForList);
-          } else {
-            renderKeypointList(data.key_points || []);
-          }
-          if (data.analysis && data.analysis.metrics) {
-            renderMetricsList(data.analysis.metrics);
-          } else {
-            renderMetricsList(null);
-          }
-          buildChart(data);
+          primaryData = data;
+          applyPrimaryView(data);
+          if (compareData) renderComparison(primaryData, compareData);
+          else document.getElementById('comparisonContainer').classList.remove('visible');
+        } catch (err) {
+          alert('Invalid JSON: ' + err.message);
+        }
+      };
+      r.readAsText(file);
+    });
+
+    document.getElementById('compareInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const data = JSON.parse(r.result);
+          compareData = data;
+          if (primaryData) renderComparison(primaryData, compareData);
+          else alert('Load a trial first, then choose “Compare with…”.');
         } catch (err) {
           alert('Invalid JSON: ' + err.message);
         }

@@ -30,70 +30,39 @@ def build_visualization_payload(
     v_zero = events.velocity_zero
     min_force = events.min_force
 
+    def _phase(start_t: float, end_t: float, **kwargs: Any) -> Dict[str, Any]:
+        d = dict(kwargs)
+        d["duration_s"] = float(end_t - start_t)
+        return d
+
     # Phases: Quiet, Eccentric (Unloading, Braking), Concentric, Flight, Landing
     phases: List[Dict[str, Any]] = []
-    # Quiet: 0 to start of movement
-    phases.append({
-        "name": "Quiet",
-        "description": "Standing still; force represents body weight",
-        "start_index": 0,
-        "end_index": onset if onset is not None else 0,
-        "start_time_s": 0.0,
-        "end_time_s": float(t[onset]) if onset is not None and onset < n else 0.0,
-    })
+    quiet_end = float(t[onset]) if onset is not None and onset < n else 0.0
+    phases.append(_phase(0.0, quiet_end, name="Quiet", description="Standing still; force represents body weight",
+        start_index=0, end_index=onset if onset is not None else 0, start_time_s=0.0, end_time_s=quiet_end))
     p1_idx = metrics.get("p1_peak_index")
     braking_end = p1_idx if p1_idx is not None else v_zero
     if onset is not None:
-        # Eccentric - Unloading: start of movement to minimum force
         if min_force is not None:
-            phases.append({
-                "name": "Eccentric - Unloading",
-                "description": "Force decreases as the body lowers",
-                "start_index": onset,
-                "end_index": min_force,
-                "start_time_s": float(t[onset]),
-                "end_time_s": float(t[min_force]),
-            })
-        # Eccentric - Braking: minimum force to P1 (first force peak)
+            st, et = float(t[onset]), float(t[min_force])
+            phases.append(_phase(st, et, name="Eccentric - Unloading", description="Force decreases as the body lowers",
+                start_index=onset, end_index=min_force, start_time_s=st, end_time_s=et))
         if min_force is not None and braking_end is not None and braking_end > min_force:
-            phases.append({
-                "name": "Eccentric - Braking",
-                "description": "Force increases as individual prepares to push off",
-                "start_index": min_force,
-                "end_index": braking_end,
-                "start_time_s": float(t[min_force]),
-                "end_time_s": float(t[braking_end]),
-            })
-        # Concentric: P1 (or velocity_zero) to take_off
+            st, et = float(t[min_force]), float(t[braking_end])
+            phases.append(_phase(st, et, name="Eccentric - Braking", description="Force increases as individual prepares to push off",
+                start_index=min_force, end_index=braking_end, start_time_s=st, end_time_s=et))
         if braking_end is not None and take_off is not None and take_off >= braking_end:
-            phases.append({
-                "name": "Concentric",
-                "description": "Push upwards; force increases (P1 and P2 peaks)",
-                "start_index": braking_end,
-                "end_index": take_off,
-                "start_time_s": float(t[braking_end]),
-                "end_time_s": float(t[take_off]),
-            })
-        # Flight: take_off to landing
+            st, et = float(t[braking_end]), float(t[take_off])
+            phases.append(_phase(st, et, name="Concentric", description="Push upwards; force increases (P1 and P2 peaks)",
+                start_index=braking_end, end_index=take_off, start_time_s=st, end_time_s=et))
         if take_off is not None and landing is not None:
-            phases.append({
-                "name": "Flight",
-                "description": "Airborne; force plate reads zero",
-                "start_index": take_off,
-                "end_index": landing,
-                "start_time_s": float(t[take_off]),
-                "end_time_s": float(t[landing]),
-            })
-        # Landing: landing to end
+            st, et = float(t[take_off]), float(t[landing])
+            phases.append(_phase(st, et, name="Flight", description="Airborne; force plate reads zero",
+                start_index=take_off, end_index=landing, start_time_s=st, end_time_s=et))
         if landing is not None:
-            phases.append({
-                "name": "Landing",
-                "description": "Impact and absorption",
-                "start_index": landing,
-                "end_index": n - 1,
-                "start_time_s": float(t[landing]),
-                "end_time_s": float(t[-1]),
-            })
+            st, et = float(t[landing]), float(t[-1])
+            phases.append(_phase(st, et, name="Landing", description="Impact and absorption",
+                start_index=landing, end_index=n - 1, start_time_s=st, end_time_s=et))
 
     # Key points
     key_points: List[Dict[str, Any]] = []
