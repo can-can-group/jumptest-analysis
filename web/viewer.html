@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>CMJ Force Plate — Phase & Key Point Viewer</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-  <script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
+  <script defer>
     if (typeof ChartAnnotation !== 'undefined') Chart.register(ChartAnnotation);
   </script>
   <style>
@@ -201,22 +201,78 @@
     .comparison-table .col-t2 { color: var(--text); }
     .comparison-table .col-delta { min-width: 6rem; }
     .chart-wrap-trial2 { margin-top: 1rem; }
+    .compare-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .compare-modal-overlay.visible { display: flex; }
+    .compare-modal {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 1.5rem;
+      max-width: 420px;
+      width: 90%;
+      max-height: 80vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    }
+    .compare-modal h3 { margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--grey-dark); }
+    .compare-modal-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1rem 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .compare-modal-list li {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .compare-modal-list li:hover { background: var(--bg); }
+    .compare-modal-list li .duration { color: var(--muted); font-size: 0.85em; }
+    .compare-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+    .compare-modal-actions button {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .compare-modal-actions button.primary { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
+    .toolbar .compare-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 0.9rem; color: var(--text); }
+    .toolbar .compare-btn:hover { border-color: var(--grey-mid); }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>CMJ Force Plate — Phase & Key Point Viewer</h1>
-    <p class="subtitle">Load an exported visualization JSON to see phases and key points on the force curve.</p>
+    <p class="subtitle" id="subtitle">Jump test results from the API.</p>
 
-    <div class="toolbar">
-      <label>
-        <input type="file" id="fileInput" accept=".json">
-        Load trial
-      </label>
-      <label>
-        <input type="file" id="compareInput" accept=".json">
-        Compare with…
-      </label>
+    <div id="compareToolbar" class="toolbar" style="display: none; margin-bottom: 1rem;">
+      <button type="button" class="compare-btn" id="compareBtn">Compare with another test…</button>
+    </div>
+
+    <div id="compareModalOverlay" class="compare-modal-overlay" aria-hidden="true">
+      <div class="compare-modal">
+        <h3>Select a test to compare</h3>
+        <ul id="compareModalList" class="compare-modal-list"></ul>
+        <div class="compare-modal-actions">
+          <button type="button" id="compareModalClose">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <div id="meta" class="meta" style="display: none;">
@@ -254,9 +310,10 @@
       <div id="comparisonTables" class="panel" style="margin-top: 0.5rem;"></div>
     </div>
 
-    <p id="placeholder" class="empty">Load a JSON file exported with <code>--export output/viz.json</code> to visualize. Use “Compare with…” to load a second trial.</p>
+    <p id="placeholder" class="empty">Loading…</p>
   </div>
-
+  <!-- INJECT_VIZ_DATA -->
+  <!-- INJECT_ATHLETE_DETAILS -->
   <script>
     // Reference style: light fills, grey/orange; stronger contrast so phases are visible
     const PHASE_COLORS = {
@@ -319,8 +376,16 @@
 
     function renderMeta(data) {
       const g = document.getElementById('metaGrid');
+      const ad = (typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : null;
+      const firstName = ad && ad.first_name != null ? ad.first_name : (ad ? '—' : (data.athlete_id || '—'));
+      const lastName = ad && ad.last_name != null ? ad.last_name : '—';
+      const gender = ad && ad.gender != null ? ad.gender : '—';
+      const age = ad && ad.age != null ? String(ad.age) : '—';
       g.innerHTML = `
-        <span class="meta-item">Athlete <strong>${data.athlete_id || '—'}</strong></span>
+        <span class="meta-item">Name <strong>${escapeHtml(firstName)}</strong></span>
+        <span class="meta-item">Last name <strong>${escapeHtml(lastName)}</strong></span>
+        <span class="meta-item">Gender <strong>${escapeHtml(gender)}</strong></span>
+        <span class="meta-item">Age <strong>${age}</strong></span>
         <span class="meta-item">Test <strong>${data.test_type || '—'}</strong></span>
         <span class="meta-item">Bodyweight <strong>${formatVal(data.bodyweight_N)} N</strong></span>
         <span class="meta-item">Sample rate <strong>${formatVal(data.sample_rate)} Hz</strong></span>
@@ -603,16 +668,24 @@
     }
 
     function buildChart(data, targetChartId) {
+      if (typeof Chart === 'undefined') {
+        var el = document.getElementById('placeholder');
+        if (el) { el.textContent = 'Chart library failed to load. Check your connection and try again.'; el.style.color = '#c53030'; el.style.display = 'block'; }
+        return;
+      }
       const canvasId = targetChartId || 'chart';
       const canvasEl = document.getElementById(canvasId);
       if (!canvasEl) return;
+      if (!data || !Array.isArray(data.time_s) || !Array.isArray(data.force_N) || data.time_s.length === 0) return;
+      data.key_points = data.key_points || [];
+      data.phases = data.phases || [];
       if (canvasId === 'chart2' && chartInstance2) { chartInstance2.destroy(); chartInstance2 = null; }
       else if (!targetChartId && chartInstance) { chartInstance.destroy(); chartInstance = null; }
 
       const time = data.time_s;
       const force = data.force_N;
-      const leftForce = data.left_force_N;
-      const rightForce = data.right_force_N;
+      const leftForce = data.left_force_N || data.force_N;
+      const rightForce = data.right_force_N || data.force_N;
       const bodyweight = data.bodyweight_N;
       const phases = data.phases || [];
 
@@ -934,50 +1007,123 @@
     let compareData = null;
 
     function applyPrimaryView(data) {
-      renderMeta(data);
-      renderPhaseList(getPhasesForDisplay(data));
-      renderKeypointList(getKeyPointsForDisplay(data));
-      renderMetricsList(getMetricsForDisplay(data));
-      buildChart(data);
-      document.getElementById('chartWrap').style.display = 'block';
-      document.getElementById('sections').style.display = 'flex';
-      document.getElementById('placeholder').style.display = 'none';
+      try {
+        if (!data) return;
+        renderMeta(data);
+        renderPhaseList(getPhasesForDisplay(data));
+        renderKeypointList(getKeyPointsForDisplay(data));
+        renderMetricsList(getMetricsForDisplay(data));
+        buildChart(data);
+        document.getElementById('chartWrap').style.display = 'block';
+        document.getElementById('sections').style.display = 'flex';
+        document.getElementById('placeholder').style.display = 'none';
+        var aid = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
+        if (aid) document.getElementById('compareToolbar').style.display = 'flex';
+      } catch (err) {
+        var el = document.getElementById('placeholder');
+        if (el) {
+          el.textContent = 'Error displaying data: ' + (err && err.message ? err.message : String(err));
+          el.style.color = '#c53030';
+          el.style.display = 'block';
+        }
+      }
     }
 
-    document.getElementById('fileInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const r = new FileReader();
-      r.onload = () => {
-        try {
-          const data = JSON.parse(r.result);
-          primaryData = data;
-          applyPrimaryView(data);
-          if (compareData) renderComparison(primaryData, compareData);
-          else document.getElementById('comparisonContainer').classList.remove('visible');
-        } catch (err) {
-          alert('Invalid JSON: ' + err.message);
+    function runViewerLoader() {
+      try {
+        var placeholderEl = document.getElementById('placeholder');
+        var dataEl = document.getElementById('viz-data-payload');
+        if (dataEl && dataEl.textContent) {
+          try {
+            var data = JSON.parse(dataEl.textContent);
+            primaryData = data;
+            if (typeof applyPrimaryView === 'function') {
+              applyPrimaryView(data);
+            }
+          } catch (parseErr) {
+            if (placeholderEl) {
+              placeholderEl.textContent = 'Invalid data from server.';
+              placeholderEl.style.color = '#c53030';
+            }
+          }
+          return;
         }
-      };
-      r.readAsText(file);
-    });
+        if (placeholderEl) {
+          placeholderEl.innerHTML = 'This page must be opened from the API using a view link (e.g. /jumptest/<strong>&lt;test_id&gt;</strong>/view). Data is provided by the server only.';
+        }
+      } catch (e) {
+        var placeholderEl = document.getElementById('placeholder');
+        if (placeholderEl) {
+          placeholderEl.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
+          placeholderEl.style.color = '#c53030';
+        }
+        if (typeof console !== 'undefined' && console.error) console.error('[CMJ viewer]', e);
+      }
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', runViewerLoader);
+    } else {
+      runViewerLoader();
+    }
 
-    document.getElementById('compareInput').addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const r = new FileReader();
-      r.onload = () => {
-        try {
-          const data = JSON.parse(r.result);
-          compareData = data;
-          if (primaryData) renderComparison(primaryData, compareData);
-          else alert('Load a trial first, then choose “Compare with…”.');
-        } catch (err) {
-          alert('Invalid JSON: ' + err.message);
-        }
-      };
-      r.readAsText(file);
-    });
+    (function initCompare() {
+      var overlay = document.getElementById('compareModalOverlay');
+      var listEl = document.getElementById('compareModalList');
+      var closeBtn = document.getElementById('compareModalClose');
+      var compareBtn = document.getElementById('compareBtn');
+      if (!overlay || !listEl || !closeBtn || !compareBtn) return;
+      function baseUrl() {
+        var p = window.location.pathname;
+        var m = p.match(/^\/jumptest\/[^/]+\/view\/?$/);
+        return m ? p.replace(/\/[^/]+\/view\/?$/, '') : (p.replace(/\/view\/?$/, '') || '/jumptest');
+      }
+      function showModal() { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
+      function hideModal() { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
+      closeBtn.addEventListener('click', hideModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideModal(); });
+      compareBtn.addEventListener('click', function() {
+        var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
+        var currentId = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+        if (!athleteId) return;
+        listEl.innerHTML = '<li class="empty">Loading…</li>';
+        showModal();
+        var base = baseUrl();
+        fetch(base + '/by-athlete/' + encodeURIComponent(athleteId))
+          .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function(tests) {
+            if (!Array.isArray(tests)) tests = [];
+            var other = tests.filter(function(t) { return t.id && t.id !== currentId; });
+            listEl.innerHTML = '';
+            if (other.length === 0) {
+              listEl.innerHTML = '<li class="empty">No other tests to compare.</li>';
+              return;
+            }
+            other.forEach(function(t) {
+              var li = document.createElement('li');
+              var typeStr = escapeHtml(t.test_type || 'CMJ');
+              var idStr = t.id ? escapeHtml(t.id.substring(0, 8)) + '\u2026' : '';
+              var durStr = t.test_duration != null ? escapeHtml(Number(t.test_duration).toFixed(2) + ' s') : '';
+              li.innerHTML = '<span>' + typeStr + ' \u00b7 ' + idStr + '</span><span class="duration">' + durStr + '</span>';
+              li.dataset.id = t.id;
+              li.addEventListener('click', function() {
+                var id = this.dataset.id;
+                if (!id) return;
+                listEl.innerHTML = '<li class="empty">Loading…</li>';
+                fetch(base + '/' + encodeURIComponent(id) + '/viz')
+                  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+                  .then(function(viz) {
+                    compareData = viz;
+                    renderComparison(primaryData, compareData);
+                    hideModal();
+                  })
+                  .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load test.</li>'; });
+              });
+              listEl.appendChild(li);
+            });
+          })
+          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load list.</li>'; });
+      });
+    })();
   </script>
 </body>
 </html>
