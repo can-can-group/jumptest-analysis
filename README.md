@@ -4,9 +4,31 @@ Analyze counter-movement jump (CMJ) force plate exports: detect events (movement
 
 ## Using this codebase as a service in your API
 
-You can run the full analysis pipeline in code and return the result as JSON (e.g. from a FastAPI/Flask endpoint). The pipeline is: load trial → baseline → events → phases → kinematics → metrics → visualization payload (including the structured `analysis` block).
+You can run the full analysis pipeline in code and return the result as JSON (e.g. from a FastAPI/Flask endpoint). **No files or images are written** when using the API entry point below.
 
-**Minimal example (returns the same structure as the exported viz JSON):**
+### Recommended: in-memory API entry point (no file I/O or plots)
+
+Use `run_analysis(data)` with an in-memory dict. Input can use `"force"` or `"total_force"`; other required keys: `athlete_id`, `test_type`, `test_duration`, `left_force`, `right_force`.
+
+```python
+from src import run_analysis
+
+# data = request.get_json()  # or build dict from your API payload
+data = {
+    "athlete_id": "...",
+    "test_type": "CMJ",
+    "test_duration": 2.5,
+    "total_force": [...],   # or "force"
+    "left_force": [...],
+    "right_force": [...],
+}
+payload = run_analysis(data)
+# payload is the full visualization dict (phases, key_points, metrics, analysis). Return as JSON.
+```
+
+Alternatively, load from a dict with `load_trial_from_dict(data)` then run the pipeline yourself (see below).
+
+### Manual pipeline (file or dict)
 
 ```python
 from pathlib import Path
@@ -47,7 +69,7 @@ payload = build_visualization_payload(trial, events, bodyweight, metrics, validi
 
 Configurable detection (e.g. take-off/landing thresholds, P1/P2 separation) is in **`src/config.py`** and can be overridden when calling `detect_events` or the peak detector. See **Code layout** below for module roles.
 
-If your API receives CMJ data as JSON in the request body instead of a file path, write the body to a temporary file and pass its path to `load_trial`, or build a `CMJTrial` from the dict (required keys: `athlete_id`, `test_type`, `test_duration`, `sample_count`, `force`, `left_force`, `right_force`; see `src/data/load.py`).
+If your API receives CMJ data as JSON in the request body, use `run_analysis(request_body)` or `load_trial_from_dict(request_body)` (accepts `force` or `total_force`; `sample_count` is optional and derived from the force array length).
 
 ## Data format
 
