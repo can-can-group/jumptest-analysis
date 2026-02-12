@@ -1,6 +1,53 @@
 # CMJ Force Plate Analysis
 
-Analyze counter-movement jump (CMJ) force plate exports: visualize total/left/right force, detect events (movement onset, take-off, landing, eccentric end), and compute physics-based metrics (jump height, peak power, RFD, phase impulses).
+Analyze counter-movement jump (CMJ) force plate exports: detect events (movement onset, take-off, landing), phases, key points (P1/P2), and compute physics-based metrics (jump height, peak power, RFD, phase impulses). This codebase is designed to be used **as a service** from your API: you send raw force data (or a path to a JSON file), and get back a structured analysis payload suitable for your frontend or other consumers.
+
+## Using this codebase as a service in your API
+
+You can run the full analysis pipeline in code and return the result as JSON (e.g. from a FastAPI/Flask endpoint). The pipeline is: load trial → baseline → events → phases → kinematics → metrics → visualization payload (including the structured `analysis` block).
+
+**Minimal example (returns the same structure as the exported viz JSON):**
+
+```python
+from pathlib import Path
+from src.data import load_trial
+from src.detect import compute_baseline, detect_events, compute_phases, validate_trial
+from src.physics import compute_kinematics, compute_metrics, compute_asymmetry
+from src.export_viz import build_visualization_payload
+
+# Load raw CMJ JSON (path or dict with force, left_force, right_force, sample_count, etc.)
+trial = load_trial(Path("path/to/cmj_raw.json"))
+
+baseline = compute_baseline(trial)
+bodyweight = baseline.bodyweight_N
+events = detect_events(trial, bodyweight=bodyweight)
+events = compute_phases(trial, events, baseline.velocity_zero_index)
+validity = validate_trial(trial, events, bodyweight=bodyweight)
+velocity = compute_kinematics(trial, bodyweight=bodyweight)
+metrics = compute_metrics(trial, events, bodyweight=bodyweight, velocity=velocity)
+metrics.update(compute_asymmetry(trial, events, bodyweight=bodyweight, metrics=metrics))
+
+payload = build_visualization_payload(trial, events, bodyweight, metrics, validity)
+
+# payload is a dict you can return from your API (e.g. return payload or json.dumps(payload))
+# It includes:
+#   - athlete_id, test_type, bodyweight_N, validity, time_s, force_N, left_force_N, right_force_N
+#   - phases: list of { name, start_time_s, end_time_s, duration_s, ... }
+#   - key_points: list of { name, index, time_s, value_N, ... }
+#   - metrics: flat dict of metric key → value
+#   - analysis: { phases, key_points, metrics } with each entry as { value, explanation } for UI/API
+```
+
+**Response shape your API can rely on:**
+
+- **`phases`**: array of phase objects with `name`, `start_time_s`, `end_time_s`, `duration_s`, and indices.
+- **`key_points`**: array of key points with `name`, `index`, `time_s`, `value_N`.
+- **`metrics`**: flat dictionary of metric names to numeric values (e.g. `jump_height_impulse_m`, `flight_time_s`).
+- **`analysis`**: structured block for UI and tooltips; each of `phases`, `key_points`, and `metrics` is a keyed object where each key maps to `{ "value": ..., "explanation": "..." }`. Use `analysis.phase_order` and `analysis.key_point_order` for display order.
+
+Configurable detection (e.g. take-off/landing thresholds, P1/P2 separation) is in **`src/config.py`** and can be overridden when calling `detect_events` or the peak detector. See **Code layout** below for module roles.
+
+If your API receives CMJ data as JSON in the request body instead of a file path, write the body to a temporary file and pass its path to `load_trial`, or build a `CMJTrial` from the dict (required keys: `athlete_id`, `test_type`, `test_duration`, `sample_count`, `force`, `left_force`, `right_force`; see `src/data/load.py`).
 
 ## Data format
 
@@ -95,11 +142,15 @@ The output video stacks the source video and the force chart; a playhead moves i
 ## Code layout
 
 - **src/data**: load JSON, validate, build time vector (`load.py`, `types.py`).
-- **src/detect**: bodyweight/mass (`baseline.py`), take-off/landing/onset (`events.py`), eccentric end and v=0 (`phases.py`).
-- **src/physics**: COM acceleration/velocity from force (`kinematics.py`), jump height, power, RFD, phase impulses (`metrics.py`).
+- **src/config**: default thresholds and options (`CMJConfig`); tune for your API (e.g. `min_p1_p2_separation_ms`, take-off/landing thresholds).
+- **src/detect**: bodyweight/mass (`baseline.py`), take-off/landing/onset (`events.py`), eccentric end and v=0 (`phases.py`), P1/P2 detection (`structural_peaks.py`), trial validity (`validity.py`).
+- **src/physics**: COM velocity from force (`kinematics.py`), jump height, power, RFD, phase impulses, P1/P2 (`metrics.py`), left/right asymmetry (`asymmetry.py`).
+- **src/analysis_response**: builds the `analysis` block (phases, key_points, metrics as key → `{ value, explanation }`) for API and UI.
+- **src/export_viz**: builds the full visualization payload (time, force, phases, key_points, metrics, events, analysis); used by the CLI export and by your service.
 - **src/signal**: optional low-pass filter (`filter.py`) for robustness.
 - **src/viz**: single chart of force traces and event lines (`chart.py`).
-- **script/main.py**: entry point that ties load → baseline → events → phases → metrics → plot.
+- **script/main.py**: CLI entry point (load → baseline → events → phases → metrics → plot/export). Use the same sequence in your API service.
+- **web/viewer.html**: standalone viewer for exported JSON (phases, key points, metrics, comparison of two trials).
 - **script/video_sync_visualizer.py**: launches the video–data sync visualizer (serves `visualizer/index.html` and opens in browser).
 - **script/render_sync_video.py**: renders the same video+chart composite to an MP4 file (no browser).
 - **visualizer/index.html**: single-page app: video player + force chart with synced playhead; chart click seeks video.
