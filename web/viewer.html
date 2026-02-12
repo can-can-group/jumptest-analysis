@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CMJ Force Plate — Phase & Key Point Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+  <script>
+    if (typeof ChartAnnotation !== 'undefined') Chart.register(ChartAnnotation);
+  </script>
+  <style>
+    :root {
+      --bg: #f5f5f5;
+      --surface: #ffffff;
+      --text: #333333;
+      --muted: #666666;
+      --border: #e0e0e0;
+      --orange: #FF8C00;
+      --orange-muted: #FFA07A;
+      --grey-dark: #333333;
+      --grey-mid: #999999;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--grey-dark);
+    }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .toolbar {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .toolbar label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text);
+    }
+    .toolbar label:hover { border-color: var(--grey-mid); }
+    .toolbar input[type="file"] { display: none; }
+    .meta {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .meta-item { color: var(--muted); }
+    .meta-item strong { color: var(--text); }
+    .validity-invalid { color: #c53030; }
+    .validity-ok { color: #276749; }
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .chart-wrap canvas { max-width: 100%; }
+    .sections { display: flex; flex-direction: column; gap: 1.5rem; }
+    .phases-keypoints-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 700px) { .phases-keypoints-row { grid-template-columns: 1fr; } }
+    .metrics-section { width: 100%; }
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    .panel h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--grey-dark);
+    }
+    .phase-list, .keypoint-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .phase-list li, .keypoint-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.15rem;
+    }
+    .phase-list li > .row, .keypoint-list li > .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 1rem;
+    }
+    .item-desc {
+      font-size: 0.75rem;
+      color: var(--muted);
+      line-height: 1.25;
+      margin-top: 0.1rem;
+    }
+    .phase-list li:last-child, .keypoint-list li:last-child { border-bottom: none; }
+    .metrics-section .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.5rem 1.5rem;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .metrics-section .metrics-grid li {
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.75rem;
+    }
+    .metrics-section .metrics-grid li:last-child { border-bottom: none; }
+    .metrics-section .metric-key { font-weight: 500; color: var(--text); }
+    .metrics-section .metric-value { color: var(--muted); font-size: 0.85em; }
+    .phase-list li[title], .keypoint-list li[title], .metrics-section .metrics-grid li[title] { cursor: help; }
+    .phase-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+      margin-right: 0.5rem;
+    }
+    .phase-name { font-weight: 500; color: var(--text); }
+    .phase-time, .kp-value { color: var(--muted); font-size: 0.85em; }
+    .empty { color: var(--muted); text-align: center; padding: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>CMJ Force Plate — Phase & Key Point Viewer</h1>
+    <p class="subtitle">Load an exported visualization JSON to see phases and key points on the force curve.</p>
+
+    <div class="toolbar">
+      <label>
+        <input type="file" id="fileInput" accept=".json">
+        Load visualization JSON
+      </label>
+    </div>
+
+    <div id="meta" class="meta" style="display: none;">
+      <div class="meta-grid" id="metaGrid"></div>
+      <div id="validityMsg" style="margin-top: 0.75rem;"></div>
+    </div>
+
+    <div id="chartWrap" class="chart-wrap" style="display: none;">
+      <canvas id="chart"></canvas>
+    </div>
+
+    <div id="sections" class="sections analysis-block" style="display: none;">
+      <div class="phases-keypoints-row">
+        <div class="panel">
+          <h2>Phases</h2>
+          <ul id="phaseList" class="phase-list"></ul>
+        </div>
+        <div class="panel">
+          <h2>Key points</h2>
+          <ul id="keypointList" class="keypoint-list"></ul>
+        </div>
+      </div>
+      <div class="metrics-section panel">
+        <h2>Metrics</h2>
+        <ul id="metricsList" class="metrics-grid"></ul>
+      </div>
+    </div>
+
+    <p id="placeholder" class="empty">Load a JSON file exported with <code>--export output/viz.json</code> to visualize.</p>
+  </div>
+
+  <script>
+    // Reference style: light fills, grey/orange; stronger contrast so phases are visible
+    const PHASE_COLORS = {
+      'Quiet': 'rgba(51, 51, 51, 0.08)',
+      'Eccentric': 'rgba(255, 140, 0, 0.14)',
+      'Eccentric - Unloading': 'rgba(255, 140, 0, 0.14)',
+      'Eccentric - Braking': 'rgba(255, 140, 0, 0.22)',
+      'Concentric': 'rgba(180, 180, 180, 0.5)',
+      'Flight': 'rgba(0, 0, 0, 0.06)',
+      'Landing': 'rgba(255, 160, 122, 0.22)'
+    };
+    function phaseLabelShort(name) {
+      if (name === 'Eccentric - Unloading') return 'Eccentric';
+      if (name === 'Eccentric - Braking') return 'Braking';
+      return name;
+    }
+    const PHASE_LINE_COLORS = {
+      'Quiet': '#333333',
+      'Eccentric - Unloading': '#FF8C00',
+      'Eccentric - Braking': '#FF8C00',
+      'Concentric': '#333333',
+      'Flight': '#000000',
+      'Landing': '#FFA07A'
+    };
+    function getPhaseAtTime(phases, t) {
+      for (let i = phases.length - 1; i >= 0; i--) {
+        if (t >= phases[i].start_time_s && t <= phases[i].end_time_s) return phases[i].name;
+      }
+      return 'Quiet';
+    }
+    function getLineColorForPhase(phaseName) {
+      return PHASE_LINE_COLORS[phaseName] || '#333333';
+    }
+    function keyPointLineColor(name) {
+      const orange = '#FF8C00';
+      const grey = '#999999';
+      if (/Start of movement|Minimum force|Max RFD/i.test(name)) return orange;
+      return grey;
+    }
+
+    let chartInstance = null;
+
+    function formatTime(s) {
+      if (s == null) return '—';
+      return Number(s).toFixed(3) + ' s';
+    }
+
+    function formatVal(v) {
+      if (v == null) return '—';
+      const n = Number(v);
+      return n.toFixed(2);
+    }
+
+    function renderMeta(data) {
+      const g = document.getElementById('metaGrid');
+      g.innerHTML = `
+        <span class="meta-item">Athlete <strong>${data.athlete_id || '—'}</strong></span>
+        <span class="meta-item">Test <strong>${data.test_type || '—'}</strong></span>
+        <span class="meta-item">Bodyweight <strong>${formatVal(data.bodyweight_N)} N</strong></span>
+        <span class="meta-item">Sample rate <strong>${formatVal(data.sample_rate)} Hz</strong></span>
+      `;
+      const vDiv = document.getElementById('validityMsg');
+      if (data.validity && !data.validity.is_valid && data.validity.flags && data.validity.flags.length) {
+        vDiv.className = 'validity-invalid';
+        vDiv.textContent = 'Flags: ' + data.validity.flags.join(', ');
+      } else {
+        vDiv.className = 'validity-ok';
+        vDiv.textContent = 'Trial valid.';
+      }
+      document.getElementById('meta').style.display = 'block';
+    }
+
+    function renderPhaseList(phases) {
+      const ul = document.getElementById('phaseList');
+      if (!phases || phases.length === 0) {
+        ul.innerHTML = '<li class="empty">No phases</li>';
+        return;
+      }
+      ul.innerHTML = phases.map((p, i) => {
+        const color = getLineColorForPhase(p.name);
+        const title = p.explanation ? ` title="${escapeAttr(p.explanation)}"` : '';
+        const desc = p.explanation ? `<span class="item-desc">${escapeHtml(p.explanation)}</span>` : '';
+        return `
+          <li${title}>
+            <div class="row">
+              <span style="display:flex;align-items:center;">
+                <span class="phase-dot" style="background:${color}"></span>
+                <span class="phase-name">${p.name}</span>
+              </span>
+              <span class="phase-time">${formatTime(p.start_time_s)} → ${formatTime(p.end_time_s)}</span>
+            </div>
+            ${desc}
+          </li>
+        `;
+      }).join('');
+    }
+
+    function renderKeypointList(keyPoints) {
+      const ul = document.getElementById('keypointList');
+      if (!keyPoints || keyPoints.length === 0) {
+        ul.innerHTML = '<li class="empty">No key points</li>';
+        return;
+      }
+      ul.innerHTML = keyPoints.map((kp, i) => {
+        const val = kp.value_N != null ? formatVal(kp.value_N) + ' N' : (kp.value_N_per_s != null ? formatVal(kp.value_N_per_s) + ' N/s' : '');
+        const title = kp.explanation ? ` title="${escapeAttr(kp.explanation)}"` : '';
+        const desc = kp.explanation ? `<span class="item-desc">${escapeHtml(kp.explanation)}</span>` : '';
+        return `
+          <li${title}>
+            <div class="row">
+              <span class="phase-name">${kp.name}</span>
+              <span class="kp-value">${formatTime(kp.time_s)} ${val ? ' · ' + val : ''}</span>
+            </div>
+            ${desc}
+          </li>
+        `;
+      }).join('');
+    }
+
+    function escapeAttr(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function escapeHtml(s) {
+      if (s == null) return '';
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function metricLabel(key) {
+      return key.replace(/_/g, ' ');
+    }
+
+    function renderMetricsList(metricsObj) {
+      const ul = document.getElementById('metricsList');
+      if (!metricsObj || typeof metricsObj !== 'object') {
+        ul.innerHTML = '<li class="empty">No metrics</li>';
+        return;
+      }
+      const entries = Object.entries(metricsObj).sort((a, b) => a[0].localeCompare(b[0]));
+      if (entries.length === 0) {
+        ul.innerHTML = '<li class="empty">No metrics</li>';
+        return;
+      }
+      ul.innerHTML = entries.map(([key, item]) => {
+        const value = item && typeof item === 'object' && 'value' in item ? item.value : item;
+        const explanation = item && typeof item === 'object' && 'explanation' in item ? item.explanation : '';
+        const title = explanation ? ` title="${escapeAttr(explanation)}"` : '';
+        const displayVal = value == null ? '—' : (typeof value === 'number' ? (Number.isInteger(value) ? value : formatVal(value)) : String(value));
+        return `
+          <li${title}>
+            <span class="metric-key">${metricLabel(key)}</span>
+            <span class="metric-value">${displayVal}</span>
+          </li>
+        `;
+      }).join('');
+    }
+
+    function buildFillUnderCurve(time, force, startTime, endTime, fillColor) {
+      const pts = [];
+      let i0 = 0;
+      while (i0 < time.length && time[i0] < startTime) i0++;
+      let i1 = time.length - 1;
+      while (i1 >= 0 && time[i1] > endTime) i1--;
+      if (i0 > i1) return pts;
+      pts.push({ x: time[i0], y: 0 });
+      for (let i = i0; i <= i1; i++) pts.push({ x: time[i], y: force[i] });
+      pts.push({ x: time[i1], y: 0 });
+      return pts;
+    }
+
+    function buildChart(data) {
+      const time = data.time_s;
+      const force = data.force_N;
+      const leftForce = data.left_force_N;
+      const rightForce = data.right_force_N;
+      const bodyweight = data.bodyweight_N;
+      const phases = data.phases || [];
+
+      // Use (x, y) points so the x-axis is linear time – annotations use the same scale
+      const totalPoints = time.map((t, i) => ({ x: t, y: force[i] }));
+      const leftPoints = time.map((t, i) => ({ x: t, y: leftForce[i] }));
+      const rightPoints = time.map((t, i) => ({ x: t, y: rightForce[i] }));
+
+      // Fill-under-curve for Eccentric (Unloading + Braking) and Concentric
+      const unloadingPhaseForFill = phases.find(p => p.name === 'Eccentric - Unloading');
+      const brakingPhaseForFill = phases.find(p => p.name === 'Eccentric - Braking');
+      const eccentricStart = unloadingPhaseForFill ? unloadingPhaseForFill.start_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.start_time_s);
+      const eccentricEnd = brakingPhaseForFill ? brakingPhaseForFill.end_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.end_time_s);
+      const eccentricFillPoints = (eccentricStart != null && eccentricEnd != null)
+        ? buildFillUnderCurve(time, force, eccentricStart, eccentricEnd, 'rgba(255, 140, 0, 0.25)')
+        : [];
+      const concentricPhase = phases.find(p => /Concentric/i.test(p.name));
+      const concentricFillPoints = concentricPhase
+        ? buildFillUnderCurve(time, force, concentricPhase.start_time_s, concentricPhase.end_time_s, 'rgba(224, 224, 224, 0.85)')
+        : [];
+
+      // Key point markers on the curve: (x, y) and color per point
+      const keyPointData = data.key_points.map(kp => ({
+        x: kp.time_s,
+        y: kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0)
+      }));
+      const keyPointColors = data.key_points.map(kp =>
+        /Start of movement|Minimum force|Max RFD/i.test(kp.name) ? '#FF8C00' : '#333333'
+      );
+
+      const annotations = {};
+      const yMaxForce = Math.max(...force);
+
+      // Main phases: merge Eccentric sub-phases into one "Eccentric" bracket; sub-phases drawn below
+      const unloadingPhase = phases.find(p => p.name === 'Eccentric - Unloading');
+      const brakingPhase = phases.find(p => p.name === 'Eccentric - Braking');
+      const mainPhases = [];
+      for (const p of phases) {
+        if (p.name === 'Eccentric - Unloading' || p.name === 'Eccentric - Braking') {
+          if (mainPhases.every(m => m.name !== 'Eccentric')) {
+            const start = unloadingPhase ? unloadingPhase.start_time_s : p.start_time_s;
+            const end = brakingPhase ? brakingPhase.end_time_s : p.end_time_s;
+            mainPhases.push({ name: 'Eccentric', start_time_s: start, end_time_s: end });
+          }
+          continue;
+        }
+        mainPhases.push({ name: p.name, start_time_s: p.start_time_s, end_time_s: p.end_time_s });
+      }
+
+      // Main phase boxes: full height, label at top
+      mainPhases.forEach((p, i) => {
+        const color = PHASE_COLORS[p.name] || (p.name === 'Eccentric' ? 'rgba(255, 140, 0, 0.14)' : 'rgba(128,128,128,0.08)');
+        annotations[`box_main_${i}`] = {
+          type: 'box',
+          xMin: p.start_time_s,
+          xMax: p.end_time_s,
+          yMin: 'min',
+          yMax: 'max',
+          backgroundColor: color,
+          borderWidth: 0,
+          label: {
+            display: true,
+            content: p.name,
+            position: 'start',
+            color: '#666666',
+            font: { size: 11 }
+          }
+        };
+      });
+
+      // Sub-phases (Unloading, Braking): dotted horizontal line from start to end; label at each end (no box, text only) to avoid clamping
+      const subPhaseLineY = yMaxForce * 0.92;
+      [unloadingPhase, brakingPhase].filter(Boolean).forEach((p, i) => {
+        const subLabel = p.name === 'Eccentric - Unloading' ? 'Unloading' : 'Braking';
+        annotations[`line_sub_${i}`] = {
+          type: 'line',
+          xMin: p.start_time_s,
+          xMax: p.end_time_s,
+          yMin: subPhaseLineY,
+          yMax: subPhaseLineY,
+          borderColor: 'rgba(255, 140, 0, 0.7)',
+          borderWidth: 1.5,
+          borderDash: [4, 3],
+          label: {
+            display: true,
+            content: subLabel,
+            position: i === 0 ? 'start' : 'end',
+            xAdjust: i === 0 ? 8 : -8,
+            yAdjust: -10,
+            backgroundColor: 'transparent',
+            borderWidth: 0,
+            color: '#666666',
+            font: { size: 10 }
+          }
+        };
+      });
+
+      // Vertical separator between Unloading and Braking (at min-force boundary) so the two sub-phases are clearly distinct
+      if (unloadingPhase && brakingPhase) {
+        const boundaryTime = unloadingPhase.end_time_s;
+        const sepHeight = yMaxForce * 0.06;
+        annotations.subphase_separator = {
+          type: 'line',
+          xMin: boundaryTime,
+          xMax: boundaryTime,
+          yMin: subPhaseLineY - sepHeight,
+          yMax: subPhaseLineY + sepHeight * 0.5,
+          borderColor: 'rgba(255, 140, 0, 0.8)',
+          borderWidth: 1.5,
+          borderDash: [3, 3]
+        };
+      }
+
+      // Key point labels: always visible on chart, no vertical lines; staggered so they don't overlap
+      function keyPointLabelText(name) {
+        if (/Start of movement/i.test(name)) return 'Start of movement';
+        if (/Minimum force/i.test(name)) return 'Min force';
+        if (/P1 peak/i.test(name)) return 'P1';
+        if (/P2 peak/i.test(name)) return 'P2';
+        return name;
+      }
+      data.key_points.forEach((kp, i) => {
+        const yVal = kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0);
+        const isOrange = /Start of movement|Minimum force/i.test(kp.name);
+        const row = i % 3;
+        const col = Math.floor(i / 3) % 2;
+        annotations[`label_${i}`] = {
+          type: 'label',
+          xValue: kp.time_s,
+          yValue: yVal,
+          content: keyPointLabelText(kp.name),
+          position: { x: col === 0 ? 'end' : 'start', y: row === 0 ? 'start' : row === 1 ? 'center' : 'end' },
+          xAdjust: (col === 0 ? -14 : 14),
+          yAdjust: row === 0 ? -16 : row === 1 ? 0 : 16,
+          backgroundColor: 'rgba(255,255,255,0.95)',
+          borderColor: isOrange ? 'rgba(255, 140, 0, 0.5)' : 'rgba(0,0,0,0.15)',
+          borderWidth: 1,
+          borderRadius: 4,
+          color: isOrange ? '#b85800' : '#1a1a1a',
+          font: { size: 11 },
+          padding: 6
+        };
+      });
+
+      const bwLine = {
+        type: 'line',
+        yMin: bodyweight,
+        yMax: bodyweight,
+        xMin: time[0],
+        xMax: time[time.length - 1],
+        borderColor: '#999999',
+        borderWidth: 1,
+        borderDash: [4, 4],
+        label: {
+          display: true,
+          content: 'Bodyweight',
+          position: 'end',
+          color: '#666666',
+          font: { size: 10 }
+        }
+      };
+      annotations.bodyweight = bwLine;
+
+      const startKp = data.key_points.find(k => /Start of movement/i.test(k.name));
+      const minForceKp = data.key_points.find(k => /Minimum force/i.test(k.name));
+      const takeoffKp = data.key_points.find(k => /Take-off/i.test(k.name));
+      const impulseStartKp = minForceKp || startKp;
+      if (impulseStartKp && takeoffKp && yMaxForce > 0) {
+        annotations.impulse = {
+          type: 'box',
+          xMin: impulseStartKp.time_s,
+          xMax: takeoffKp.time_s,
+          yMin: 0,
+          yMax: Math.max(60, yMaxForce * 0.05),
+          backgroundColor: 'rgba(0,0,0,0.03)',
+          borderColor: '#333333',
+          borderWidth: 1.5,
+          label: {
+            display: true,
+            content: 'Impulse',
+            position: 'center',
+            color: '#333333',
+            font: { size: 11 }
+          }
+        };
+      }
+
+      if (chartInstance) chartInstance.destroy();
+
+      const ctx = document.getElementById('chart').getContext('2d');
+      const datasets = [
+        // Fill under curve (draw first so they sit behind the line)
+        ...(eccentricFillPoints.length > 0 ? [{
+          label: 'Eccentric (area)',
+          data: eccentricFillPoints,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(255, 140, 0, 0.22)',
+          fill: true,
+          pointRadius: 0,
+          tension: 0.1,
+          order: 3
+        }] : []),
+        ...(concentricFillPoints.length > 0 ? [{
+          label: 'Concentric (area)',
+          data: concentricFillPoints,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(200, 200, 200, 0.45)',
+          fill: true,
+          pointRadius: 0,
+          tension: 0.1,
+          order: 3
+        }] : []),
+        {
+          label: 'Total force',
+          data: totalPoints,
+          borderColor: '#333333',
+          backgroundColor: 'transparent',
+          borderWidth: 2.5,
+          pointRadius: 0,
+          tension: 0.1,
+          order: 1,
+          segment: {
+            borderColor: (ctx) => {
+              const t = ctx.p1?.parsed?.x;
+              if (t == null) return '#333333';
+              return getLineColorForPhase(getPhaseAtTime(phases, t));
+            }
+          }
+        },
+        {
+          label: 'Key points',
+          data: keyPointData,
+          borderColor: (ctx) => keyPointColors[ctx.dataIndex] === '#FF8C00' ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.7)',
+          backgroundColor: (ctx) => keyPointColors[ctx.dataIndex] || '#333333',
+          borderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 9,
+          pointStyle: 'circle',
+          order: 0
+        },
+        { label: 'Left force', data: leftPoints, borderColor: 'rgba(153, 153, 153, 0.6)', backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.1, borderDash: [4, 2], order: 2 },
+        { label: 'Right force', data: rightPoints, borderColor: 'rgba(153, 153, 153, 0.6)', backgroundColor: 'transparent', borderWidth: 1, pointRadius: 0, tension: 0.1, borderDash: [4, 2], order: 2 }
+      ];
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.5,
+          layout: {
+            padding: { top: 24, right: 16, bottom: 88, left: 16 }
+          },
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: '#333333',
+                font: { size: 11 },
+                filter: (item, chart) => {
+                  const label = item.text || '';
+                  return !/\(area\)|Key points/i.test(label);
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => {
+                  if (ctx.dataset.label === 'Key points' && data.key_points && data.key_points[ctx.dataIndex]) {
+                    const kp = data.key_points[ctx.dataIndex];
+                    let s = kp.name;
+                    if (kp.value_N != null) s += ` · ${Number(kp.value_N).toFixed(1)} N`;
+                    if (kp.value_N_per_s != null) s += ` · ${Number(kp.value_N_per_s).toFixed(0)} N/s`;
+                    return s;
+                  }
+                  return null;
+                }
+              }
+            },
+            annotation: { clip: false, annotations }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'Time (s)', color: '#666666', font: { size: 11 } },
+              min: time[0],
+              max: time[time.length - 1],
+              ticks: { maxTicksLimit: 12, color: '#666666', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.08)' }
+            },
+            y: {
+              title: { display: true, text: 'Force (N)', color: '#666666', font: { size: 11 } },
+              beginAtZero: true,
+              grace: '4%',
+              ticks: { color: '#666666', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.08)' }
+            }
+          }
+        },
+        plugins: (typeof ChartAnnotation !== 'undefined' ? [ChartAnnotation] : [])
+      });
+
+      document.getElementById('chartWrap').style.display = 'block';
+      document.getElementById('sections').style.display = 'flex';
+      document.getElementById('placeholder').style.display = 'none';
+    }
+
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const r = new FileReader();
+      r.onload = () => {
+        try {
+          const data = JSON.parse(r.result);
+          renderMeta(data);
+          if (data.analysis && data.analysis.phases && data.analysis.phase_order) {
+            const phasesForList = data.analysis.phase_order
+              .map(slug => data.analysis.phases[slug])
+              .filter(Boolean)
+              .map(p => ({ ...p.value, explanation: p.explanation }));
+            renderPhaseList(phasesForList);
+          } else {
+            renderPhaseList(data.phases || []);
+          }
+          if (data.analysis && data.analysis.key_points && data.analysis.key_point_order) {
+            const keyPointsForList = data.analysis.key_point_order
+              .map(slug => data.analysis.key_points[slug])
+              .filter(Boolean)
+              .map(k => ({ ...k.value, explanation: k.explanation }));
+            renderKeypointList(keyPointsForList);
+          } else {
+            renderKeypointList(data.key_points || []);
+          }
+          if (data.analysis && data.analysis.metrics) {
+            renderMetricsList(data.analysis.metrics);
+          } else {
+            renderMetricsList(null);
+          }
+          buildChart(data);
+        } catch (err) {
+          alert('Invalid JSON: ' + err.message);
+        }
+      };
+      r.readAsText(file);
+    });
+  </script>
+</body>
+</html>
