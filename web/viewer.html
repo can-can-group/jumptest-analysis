@@ -308,6 +308,10 @@
       </div>
       <div class="comparison-section-title" style="margin-top: 1.5rem;">Phases, key points & metrics — Trial 1 vs Trial 2</div>
       <div id="comparisonTables" class="panel" style="margin-top: 0.5rem;"></div>
+      <div class="comparison-section-title" style="margin-top: 1.5rem;">Total force comparison (from start of movement)</div>
+      <div id="chartWrapCompareForce" class="chart-wrap chart-wrap-trial2" style="display: none;">
+        <canvas id="chartCompareForce"></canvas>
+      </div>
     </div>
 
     <p id="placeholder" class="empty">Loading…</p>
@@ -356,6 +360,7 @@
 
     let chartInstance = null;
     let chartInstance2 = null;
+    let chartInstanceCompare = null;
 
     function formatTime(s) {
       if (s == null) return '—';
@@ -616,16 +621,82 @@
       `;
     }
 
+    function getStartOfMovementTime(data) {
+      if (!data || !Array.isArray(data.key_points)) return null;
+      const kp = data.key_points.find(function(k) { return /Start of movement/i.test(k.name || ''); });
+      return kp && typeof kp.time_s === 'number' ? kp.time_s : null;
+    }
+
+    function buildCompareForceChart(dataA, dataB) {
+      if (typeof Chart === 'undefined') return;
+      const canvasEl = document.getElementById('chartCompareForce');
+      if (!canvasEl || !dataA || !dataB || !Array.isArray(dataA.time_s) || !Array.isArray(dataA.force_N) || !Array.isArray(dataB.time_s) || !Array.isArray(dataB.force_N)) return;
+      if (chartInstanceCompare) { chartInstanceCompare.destroy(); chartInstanceCompare = null; }
+      const t0A = getStartOfMovementTime(dataA);
+      const t0B = getStartOfMovementTime(dataB);
+      const timeA = dataA.time_s;
+      const forceA = dataA.force_N;
+      const timeB = dataB.time_s;
+      const forceB = dataB.force_N;
+      const offsetA = t0A != null ? t0A : (timeA.length > 0 ? timeA[0] : 0);
+      const offsetB = t0B != null ? t0B : (timeB.length > 0 ? timeB[0] : 0);
+      const pointsA = timeA.map(function(t, i) { return { x: t - offsetA, y: forceA[i] }; });
+      const pointsB = timeB.map(function(t, i) { return { x: t - offsetB, y: forceB[i] }; });
+      const allX = pointsA.map(function(p) { return p.x; }).concat(pointsB.map(function(p) { return p.x; }));
+      const xMin = Math.min.apply(null, allX);
+      const xMax = Math.max.apply(null, allX);
+      const ctx = canvasEl.getContext('2d');
+      chartInstanceCompare = new Chart(ctx, {
+        type: 'line',
+        data: {
+          datasets: [
+            { label: 'Trial 1', data: pointsA, borderColor: '#333333', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 },
+            { label: 'Trial 2', data: pointsB, borderColor: '#FF8C00', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2.5,
+          layout: { padding: { top: 16, right: 16, bottom: 24, left: 16 } },
+          plugins: {
+            legend: { position: 'top', labels: { color: '#333333', font: { size: 11 } } }
+          },
+          scales: {
+            x: {
+              type: 'linear',
+              title: { display: true, text: 'Time from start of movement (s)', color: '#666666', font: { size: 11 } },
+              min: xMin,
+              max: xMax,
+              ticks: { maxTicksLimit: 14, color: '#666666', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.08)' }
+            },
+            y: {
+              title: { display: true, text: 'Force (N)', color: '#666666', font: { size: 11 } },
+              beginAtZero: true,
+              grace: '4%',
+              ticks: { color: '#666666', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.08)' }
+            }
+          }
+        }
+      });
+      document.getElementById('chartWrapCompareForce').style.display = 'block';
+    }
+
     function renderComparison(dataA, dataB) {
       if (!dataA || !dataB) {
         document.getElementById('comparisonContainer').classList.remove('visible');
         document.getElementById('chartWrap2').style.display = 'none';
+        document.getElementById('chartWrapCompareForce').style.display = 'none';
         if (chartInstance2) { chartInstance2.destroy(); chartInstance2 = null; }
+        if (chartInstanceCompare) { chartInstanceCompare.destroy(); chartInstanceCompare = null; }
         return;
       }
       document.getElementById('chartWrap2').style.display = 'block';
       buildChart(dataB, 'chart2');
       document.getElementById('comparisonTables').innerHTML = buildComparisonTables(dataA, dataB);
+      buildCompareForceChart(dataA, dataB);
       document.getElementById('comparisonContainer').classList.add('visible');
     }
 
