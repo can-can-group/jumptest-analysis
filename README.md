@@ -1,3 +1,4 @@
+test
 # CMJ Force Plate Analysis
 
 Analyze counter-movement jump (CMJ) force plate exports: detect events (movement onset, take-off, landing), phases, key points (P1/P2), and compute physics-based metrics (jump height, peak power, RFD, phase impulses). This codebase is designed to be used **as a service** from your API: you send raw force data (or a path to a JSON file), and get back a structured analysis payload suitable for your frontend or other consumers.
