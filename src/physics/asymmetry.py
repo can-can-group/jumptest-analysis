@@ -2,7 +2,7 @@
 from typing import Dict, Any, Optional
 
 import numpy as np
-from scipy.integrate import trapz
+from scipy.integrate import trapezoid
 from scipy.signal import savgol_filter
 
 from ..data.types import CMJTrial, CMJEvents
@@ -65,8 +65,8 @@ def compute_asymmetry(
     # Concentric impulse asymmetry
     if v_zero is not None:
         sl = slice(v_zero, take_off + 1)
-        J_L = trapz(left_f[sl], t[sl])
-        J_R = trapz(right_f[sl], t[sl])
+        J_L = trapezoid(left_f[sl], t[sl])
+        J_R = trapezoid(right_f[sl], t[sl])
         out["concentric_impulse_asymmetry_pct"] = _asymmetry_index(J_L, J_R)
     else:
         out["concentric_impulse_asymmetry_pct"] = None
@@ -74,8 +74,8 @@ def compute_asymmetry(
     # Eccentric impulse asymmetry (onset to min_force)
     if min_force is not None:
         sl = slice(onset, min_force + 1)
-        J_L = trapz(left_f[sl], t[sl])
-        J_R = trapz(right_f[sl], t[sl])
+        J_L = trapezoid(left_f[sl], t[sl])
+        J_R = trapezoid(right_f[sl], t[sl])
         out["eccentric_impulse_asymmetry_pct"] = _asymmetry_index(J_L, J_R)
     else:
         out["eccentric_impulse_asymmetry_pct"] = None

@@ -2,7 +2,7 @@
 from typing import Dict, Any, Optional
 
 import numpy as np
-from scipy.integrate import trapz, cumtrapz
+from scipy.integrate import trapezoid, cumulative_trapezoid
 from scipy.signal import savgol_filter
 
 from ..config import DEFAULT_CONFIG
@@ -57,7 +57,7 @@ def compute_metrics(
 
     # Take-off velocity and jump height (impulse-momentum)
     if onset is not None and take_off is not None:
-        impulse = trapz(force[onset : take_off + 1] - bodyweight, t[onset : take_off + 1])
+        impulse = trapezoid(force[onset : take_off + 1] - bodyweight, t[onset : take_off + 1])
         v_to = impulse / mass
         out["take_off_velocity_m_s"] = float(v_to)
         out["jump_height_impulse_m"] = float((v_to ** 2) / (2 * G))
@@ -118,7 +118,7 @@ def compute_metrics(
 
     # Phase impulses and times: unweighting = onset -> min_force; braking/propulsion use P1 when available
     if min_force is not None and onset is not None:
-        unweighting_impulse = trapz(force[onset : min_force + 1] - bodyweight, t[onset : min_force + 1])
+        unweighting_impulse = trapezoid(force[onset : min_force + 1] - bodyweight, t[onset : min_force + 1])
         out["unweighting_impulse_Ns"] = float(unweighting_impulse)
         out["unweighting_time_s"] = float((min_force - onset) * dt)
     else:
@@ -191,24 +191,24 @@ def compute_metrics(
     p1_idx = out.get("p1_peak_index")
     braking_end = p1_idx if p1_idx is not None else v_zero
     if min_force is not None and braking_end is not None and braking_end >= min_force:
-        braking_impulse = trapz(force[min_force : braking_end + 1] - bodyweight, t[min_force : braking_end + 1])
+        braking_impulse = trapezoid(force[min_force : braking_end + 1] - bodyweight, t[min_force : braking_end + 1])
         out["braking_impulse_Ns"] = float(braking_impulse)
     else:
         out["braking_impulse_Ns"] = None
     if take_off is not None and braking_end is not None and braking_end <= take_off:
-        propulsion_impulse = trapz(force[braking_end : take_off + 1] - bodyweight, t[braking_end : take_off + 1])
+        propulsion_impulse = trapezoid(force[braking_end : take_off + 1] - bodyweight, t[braking_end : take_off + 1])
         out["propulsion_impulse_Ns"] = float(propulsion_impulse)
         out["concentric_time_s"] = float((take_off - braking_end) * dt)
     else:
         out["propulsion_impulse_Ns"] = None
         out["concentric_time_s"] = None
 
-    # COM displacement from onset: s = cumtrapz(v, t)
+    # COM displacement from onset: s = cumulative_trapezoid(v, t)
     if onset is not None and take_off is not None and take_off >= onset:
         v_seg = velocity[onset : take_off + 1]
         t_seg = t[onset : take_off + 1]
         if len(v_seg) > 1:
-            s_seg = cumtrapz(v_seg, t_seg, initial=0)
+            s_seg = cumulative_trapezoid(v_seg, t_seg, initial=0)
             out["countermovement_depth_m"] = float(np.min(s_seg))
             out["com_displacement_at_takeoff_m"] = float(s_seg[-1])
         else:

@@ -1,6 +1,6 @@
 """Acceleration and velocity from force (COM kinematics), with drift correction."""
 import numpy as np
-from scipy.integrate import cumtrapz, trapz
+from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from ..data.types import CMJTrial
 
@@ -41,12 +41,12 @@ def compute_kinematics(
     a_seg = a[start:end]
     f_seg = force[start:end]
     if len(t_seg) > 1:
-        v_seg = cumtrapz(a_seg, t_seg, initial=0)
+        v_seg = cumulative_trapezoid(a_seg, t_seg, initial=0)
     else:
         v_seg = np.zeros_like(t_seg)
 
     # Drift correction: enforce v(take_off) = J/m
-    J = trapz(f_seg - bodyweight, t_seg)
+    J = trapezoid(f_seg - bodyweight, t_seg)
     v_to_expected = J / mass
     v_to_integrated = float(v_seg[-1])
     dt_seg = t_seg[-1] - t_seg[0]
