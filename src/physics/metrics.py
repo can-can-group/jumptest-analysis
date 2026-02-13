@@ -145,7 +145,8 @@ def compute_metrics(
         out["peak_concentric_force_N"] = None
         out["mean_concentric_force_N"] = None
 
-    # P1/P2 from min_force to take_off: smooth for detection, then match indices to original force
+    # P1/P2 from min_force to take_off: smooth for detection, then match indices to original force.
+    # Naming is by time order: P1 = first peak in time, P2 = second peak in time (independent of value).
     if min_force is not None and take_off is not None and min_force < take_off:
         cfg = DEFAULT_CONFIG
         result = detect_peaks_smoothed_then_match(
@@ -156,12 +157,26 @@ def compute_metrics(
             min_p1_p2_separation_ms=cfg.min_p1_p2_separation_ms,
             min_peak2_force_ratio=cfg.min_peak2_force_ratio,
         )
-        p1_idx = result.get("P1_index")
-        p2_idx = result.get("P2_index")
-        out["p1_peak_index"] = p1_idx
-        out["p2_peak_index"] = p2_idx
-        out["p1_peak_N"] = float(force[p1_idx]) if p1_idx is not None else None
-        out["p2_peak_N"] = float(force[p2_idx]) if p2_idx is not None else None
+        idx_a = result.get("P1_index")
+        idx_b = result.get("P2_index")
+        # Order by time (index): first in time = P1, second in time = P2
+        if idx_a is not None and idx_b is not None:
+            first_idx = min(idx_a, idx_b)
+            second_idx = max(idx_a, idx_b)
+            out["p1_peak_index"] = first_idx
+            out["p2_peak_index"] = second_idx
+            out["p1_peak_N"] = float(force[first_idx])
+            out["p2_peak_N"] = float(force[second_idx])
+        elif idx_a is not None:
+            out["p1_peak_index"] = idx_a
+            out["p2_peak_index"] = None
+            out["p1_peak_N"] = float(force[idx_a])
+            out["p2_peak_N"] = None
+        else:
+            out["p1_peak_index"] = None
+            out["p2_peak_index"] = None
+            out["p1_peak_N"] = None
+            out["p2_peak_N"] = None
     else:
         out["p1_peak_index"] = None
         out["p2_peak_index"] = None

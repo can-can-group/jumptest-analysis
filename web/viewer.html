@@ -223,7 +223,23 @@
       flex-direction: column;
       box-shadow: 0 4px 20px rgba(0,0,0,0.15);
     }
-    .compare-modal h3 { margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--grey-dark); }
+    .compare-modal h3 { margin: 0 0 0.75rem 0; font-size: 1.1rem; color: var(--grey-dark); }
+    .compare-modal-sort {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .compare-modal-sort label { font-size: 0.85rem; color: var(--muted); }
+    .compare-modal-sort select {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: var(--surface);
+      color: var(--text);
+    }
     .compare-modal-list {
       list-style: none;
       padding: 0;
@@ -239,9 +255,47 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
     }
     .compare-modal-list li:hover { background: var(--bg); }
     .compare-modal-list li .duration { color: var(--muted); font-size: 0.85em; }
+    .compare-modal-list li .compare-item-main {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .compare-modal-list li .compare-item-date { color: var(--grey-dark); font-weight: 500; }
+    .compare-modal-list li .compare-item-height { color: var(--orange); font-weight: 500; }
+    .compare-modal-list li .compare-item-actions { display: flex; gap: 0.35rem; align-items: center; }
+    .compare-modal-list li .compare-preview-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .compare-modal-list li .compare-preview-btn:hover { border-color: var(--grey-mid); color: var(--text); }
+    .compare-modal-list li.compare-select-row { cursor: pointer; }
+    .compare-modal-list li.preview-detail-row {
+      cursor: default;
+      background: var(--bg);
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      border-left: 3px solid var(--orange);
+    }
+    .compare-modal-list li.preview-detail-row:hover { background: var(--bg); }
+    .compare-modal-list .preview-detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 0.35rem 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .compare-modal-list .preview-detail-grid span { color: var(--muted); }
+    .compare-modal-list .preview-detail-grid strong { color: var(--text); }
     .compare-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
     .compare-modal-actions button {
       padding: 0.5rem 1rem;
@@ -254,6 +308,23 @@
     .compare-modal-actions button.primary { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
     .toolbar .compare-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 0.9rem; color: var(--text); }
     .toolbar .compare-btn:hover { border-color: var(--grey-mid); }
+    @media print {
+      .no-print { display: none !important; }
+      .container { max-width: none; }
+    }
+    .email-modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center; }
+    .email-modal-overlay.visible { display: flex; }
+    .email-modal { background: var(--surface); border-radius: 12px; padding: 1.5rem; max-width: 420px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    .email-modal h3 { margin: 0 0 1rem 0; font-size: 1.1rem; color: var(--grey-dark); }
+    .email-modal label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; color: var(--muted); }
+    .email-modal input[type="email"] { width: 100%; box-sizing: border-box; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; margin-bottom: 1rem; }
+    .email-modal .checkbox-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.9rem; color: var(--text); }
+    .email-modal .email-msg { font-size: 0.85rem; margin-bottom: 1rem; min-height: 1.2em; }
+    .email-modal .email-msg.error { color: #c53030; }
+    .email-modal .email-msg.success { color: #276749; }
+    .email-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
+    .email-modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 0.9rem; }
+    .email-modal-actions button.primary { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
   </style>
 </head>
 <body>
@@ -261,16 +332,64 @@
     <h1>CMJ Force Plate — Phase & Key Point Viewer</h1>
     <p class="subtitle" id="subtitle">Jump test results from the API.</p>
 
-    <div id="compareToolbar" class="toolbar" style="display: none; margin-bottom: 1rem;">
+    <div id="compareToolbar" class="toolbar no-print" style="display: none; margin-bottom: 1rem;">
+      <button type="button" class="compare-btn" id="downloadPdfBtn">Download as PDF</button>
+      <button type="button" class="compare-btn" id="emailBtn">Email</button>
+      <button type="button" class="compare-btn" id="viewAnotherBtn">View another test</button>
       <button type="button" class="compare-btn" id="compareBtn">Compare with another test…</button>
     </div>
 
     <div id="compareModalOverlay" class="compare-modal-overlay" aria-hidden="true">
       <div class="compare-modal">
         <h3>Select a test to compare</h3>
+        <div id="compareModalSort" class="compare-modal-sort" style="display: none;">
+          <label for="compareSortBy">Sort by:</label>
+          <select id="compareSortBy">
+            <option value="date-desc">Date (newest first)</option>
+            <option value="date-asc">Date (oldest first)</option>
+            <option value="height-desc">Jump height (high → low)</option>
+            <option value="height-asc">Jump height (low → high)</option>
+          </select>
+        </div>
         <ul id="compareModalList" class="compare-modal-list"></ul>
         <div class="compare-modal-actions">
           <button type="button" id="compareModalClose">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="emailModalOverlay" class="email-modal-overlay" aria-hidden="true">
+      <div class="email-modal">
+        <h3>Send jump test by email</h3>
+        <label for="emailTo">To</label>
+        <input type="email" id="emailTo" placeholder="athlete@example.com">
+        <div class="checkbox-row">
+          <input type="checkbox" id="emailIncludePdf">
+          <label for="emailIncludePdf" style="margin:0;">Attach PDF</label>
+        </div>
+        <p id="emailMsg" class="email-msg"></p>
+        <div class="email-modal-actions">
+          <button type="button" id="emailModalClose">Cancel</button>
+          <button type="button" id="emailSendBtn" class="primary">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="viewAnotherModalOverlay" class="compare-modal-overlay" aria-hidden="true">
+      <div class="compare-modal">
+        <h3>Select a test to view</h3>
+        <div id="viewAnotherModalSort" class="compare-modal-sort" style="display: none;">
+          <label for="viewAnotherSortBy">Sort by:</label>
+          <select id="viewAnotherSortBy">
+            <option value="date-desc">Date (newest first)</option>
+            <option value="date-asc">Date (oldest first)</option>
+            <option value="height-desc">Jump height (high → low)</option>
+            <option value="height-asc">Jump height (low → high)</option>
+          </select>
+        </div>
+        <ul id="viewAnotherModalList" class="compare-modal-list"></ul>
+        <div class="compare-modal-actions">
+          <button type="button" id="viewAnotherModalClose">Cancel</button>
         </div>
       </div>
     </div>
@@ -1140,59 +1259,322 @@
     (function initCompare() {
       var overlay = document.getElementById('compareModalOverlay');
       var listEl = document.getElementById('compareModalList');
+      var sortBar = document.getElementById('compareModalSort');
+      var sortSelect = document.getElementById('compareSortBy');
       var closeBtn = document.getElementById('compareModalClose');
       var compareBtn = document.getElementById('compareBtn');
       if (!overlay || !listEl || !closeBtn || !compareBtn) return;
+      var currentTests = [];
+      var currentIdForCompare = '';
+      var baseUrlFn = function() {
+        var p = window.location.pathname;
+        var m = p.match(/^\/jumptest\/[^/]+\/view\/?$/);
+        return m ? p.replace(/\/[^/]+\/view\/?$/, '') : (p.replace(/\/view\/?$/, '') || '/jumptest');
+      };
+      function showModal() { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
+      function hideModal() { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
+      function formatListDate(isoStr) {
+        if (!isoStr || typeof isoStr !== 'string') return '—';
+        try {
+          var d = new Date(isoStr);
+          if (isNaN(d.getTime())) return isoStr.slice(0, 10);
+          var day = d.getDate();
+          var mon = d.toLocaleString('en', { month: 'short' });
+          var year = d.getFullYear();
+          return day + ' ' + mon + ' ' + year;
+        } catch (e) { return isoStr.slice(0, 10); }
+      }
+      function formatJumpHeight(m) {
+        if (m == null || typeof m !== 'number') return '—';
+        return Number(m).toFixed(3) + ' m';
+      }
+      function sortTests(tests, order) {
+        var list = tests.slice();
+        if (order === 'date-desc') list.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+        else if (order === 'date-asc') list.sort(function(a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+        else if (order === 'height-desc') list.sort(function(a, b) { return (b.jump_height_m != null ? b.jump_height_m : -1) - (a.jump_height_m != null ? a.jump_height_m : -1); });
+        else if (order === 'height-asc') list.sort(function(a, b) { return (a.jump_height_m != null ? a.jump_height_m : 1e9) - (b.jump_height_m != null ? b.jump_height_m : 1e9); });
+        return list;
+      }
+      function buildPreviewDetailHtml(viz) {
+        var m = (viz && viz.metrics) ? viz.metrics : (viz && viz.analysis && viz.analysis.metrics) ? viz.analysis.metrics : {};
+        function val(k) { var v = m[k]; if (v != null && typeof v === 'object' && 'value' in v) return v.value; return v; }
+        var rows = [];
+        if (val('jump_height_impulse_m') != null) rows.push(['Jump height (impulse)', Number(val('jump_height_impulse_m')).toFixed(3) + ' m']);
+        if (val('jump_height_flight_m') != null) rows.push(['Jump height (flight)', Number(val('jump_height_flight_m')).toFixed(3) + ' m']);
+        if (val('flight_time_s') != null) rows.push(['Flight time', Number(val('flight_time_s')).toFixed(3) + ' s']);
+        if (val('peak_power_W') != null) rows.push(['Peak power', Number(val('peak_power_W')).toFixed(0) + ' W']);
+        if (val('rsi_mod') != null) rows.push(['RSI mod', Number(val('rsi_mod')).toFixed(3)]);
+        if (val('take_off_velocity_m_s') != null) rows.push(['Take-off velocity', Number(val('take_off_velocity_m_s')).toFixed(3) + ' m/s']);
+        if (rows.length === 0) return '<p class="empty">No metrics</p>';
+        return '<div class="preview-detail-grid">' + rows.map(function(r) { return '<span>' + escapeHtml(r[0]) + '</span><strong>' + escapeHtml(r[1]) + '</strong>'; }).join('') + '</div>';
+      }
+      function renderCompareList(tests, order) {
+        order = order || (sortSelect ? sortSelect.value : 'date-desc');
+        var sorted = sortTests(tests, order);
+        listEl.innerHTML = '';
+        sorted.forEach(function(t) {
+          var li = document.createElement('li');
+          li.className = 'compare-select-row';
+          li.dataset.id = t.id;
+          var dateStr = formatListDate(t.created_at);
+          var heightStr = formatJumpHeight(t.jump_height_m);
+          var durStr = t.test_duration != null ? Number(t.test_duration).toFixed(2) + ' s' : '—';
+          li.innerHTML = '<div class="compare-item-main">' +
+            '<span class="compare-item-date">' + escapeHtml(dateStr) + '</span>' +
+            '<span class="compare-item-height">' + escapeHtml(heightStr) + '</span>' +
+            '<span class="duration">' + escapeHtml(durStr) + '</span>' +
+            '</div>' +
+            '<div class="compare-item-actions">' +
+            '<button type="button" class="compare-preview-btn" data-id="' + escapeAttr(t.id) + '">Preview</button>' +
+            '</div>';
+          listEl.appendChild(li);
+        });
+      }
+      function openPreviewRow(testId, base) {
+        var existing = listEl.querySelector('.preview-detail-row[data-preview-id="' + escapeAttr(testId) + '"]');
+        if (existing) {
+          existing.remove();
+          return;
+        }
+        var allPreviews = listEl.querySelectorAll('.preview-detail-row');
+        allPreviews.forEach(function(el) { el.remove(); });
+        var row = document.createElement('li');
+        row.className = 'preview-detail-row';
+        row.dataset.previewId = testId;
+        row.innerHTML = '<div>Loading…</div>';
+        var selectRow = listEl.querySelector('li.compare-select-row[data-id="' + escapeAttr(testId) + '"]');
+        if (selectRow && selectRow.nextSibling) listEl.insertBefore(row, selectRow.nextSibling);
+        else listEl.appendChild(row);
+        fetch(base + '/' + encodeURIComponent(testId) + '/viz')
+          .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function(viz) {
+            row.innerHTML = '<div><strong>Details</strong></div>' + buildPreviewDetailHtml(viz) + '<button type="button" class="compare-preview-btn" style="margin-top:0.35rem">Close</button>';
+            row.querySelector('button').addEventListener('click', function(ev) { ev.stopPropagation(); row.remove(); });
+          })
+          .catch(function() { row.innerHTML = '<div>Failed to load details.</div>'; });
+      }
+      closeBtn.addEventListener('click', hideModal);
+      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideModal(); });
+      if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+          if (currentTests.length) renderCompareList(currentTests, sortSelect.value);
+        });
+      }
+      listEl.addEventListener('click', function(e) {
+        var btn = e.target && e.target.classList && e.target.classList.contains('compare-preview-btn');
+        if (btn && e.target.dataset && e.target.dataset.id) {
+          e.preventDefault();
+          e.stopPropagation();
+          openPreviewRow(e.target.dataset.id, baseUrlFn());
+          return;
+        }
+        if (btn && e.target.textContent.trim() === 'Close') return;
+        var li = e.target && e.target.closest && e.target.closest('li.compare-select-row');
+        if (!li || !li.dataset.id) return;
+        var id = li.dataset.id;
+        listEl.innerHTML = '<li class="empty">Loading…</li>';
+        fetch(baseUrlFn() + '/' + encodeURIComponent(id) + '/viz')
+          .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function(viz) {
+            compareData = viz;
+            renderComparison(primaryData, compareData);
+            hideModal();
+          })
+          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load test.</li>'; });
+      });
+      compareBtn.addEventListener('click', function() {
+        var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
+        currentIdForCompare = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+        if (!athleteId) return;
+        listEl.innerHTML = '<li class="empty">Loading…</li>';
+        if (sortBar) sortBar.style.display = 'none';
+        showModal();
+        var base = baseUrlFn();
+        fetch(base + '/by-athlete/' + encodeURIComponent(athleteId))
+          .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function(tests) {
+            if (!Array.isArray(tests)) tests = [];
+            currentTests = tests.filter(function(t) { return t.id && t.id !== currentIdForCompare; });
+            listEl.innerHTML = '';
+            if (currentTests.length === 0) {
+              listEl.innerHTML = '<li class="empty">No other tests to compare.</li>';
+              return;
+            }
+            if (sortBar) sortBar.style.display = 'flex';
+            renderCompareList(currentTests, sortSelect ? sortSelect.value : 'date-desc');
+          })
+          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load list.</li>'; });
+      });
+    })();
+
+    (function initPdfEmailViewAnother() {
       function baseUrl() {
         var p = window.location.pathname;
         var m = p.match(/^\/jumptest\/[^/]+\/view\/?$/);
         return m ? p.replace(/\/[^/]+\/view\/?$/, '') : (p.replace(/\/view\/?$/, '') || '/jumptest');
       }
-      function showModal() { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
-      function hideModal() { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
-      closeBtn.addEventListener('click', hideModal);
-      overlay.addEventListener('click', function(e) { if (e.target === overlay) hideModal(); });
-      compareBtn.addEventListener('click', function() {
-        var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
+      var downloadPdfBtn = document.getElementById('downloadPdfBtn');
+      if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', function() {
         var currentId = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+        if (!currentId) return;
+        window.open(baseUrl() + '/' + encodeURIComponent(currentId) + '/pdf', '_blank');
+      });
+
+      var emailBtn = document.getElementById('emailBtn');
+      var emailModalOverlay = document.getElementById('emailModalOverlay');
+      var emailTo = document.getElementById('emailTo');
+      var emailIncludePdf = document.getElementById('emailIncludePdf');
+      var emailMsg = document.getElementById('emailMsg');
+      var emailModalClose = document.getElementById('emailModalClose');
+      var emailSendBtn = document.getElementById('emailSendBtn');
+      if (emailBtn && emailModalOverlay) {
+        emailBtn.addEventListener('click', function() {
+          var details = (typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : {};
+          if (emailTo) emailTo.value = details.email || '';
+          if (emailMsg) { emailMsg.textContent = ''; emailMsg.className = 'email-msg'; }
+          if (emailIncludePdf) emailIncludePdf.checked = false;
+          emailModalOverlay.classList.add('visible');
+          emailModalOverlay.setAttribute('aria-hidden', 'false');
+        });
+      }
+      if (emailModalClose) emailModalClose.addEventListener('click', function() {
+        if (emailModalOverlay) { emailModalOverlay.classList.remove('visible'); emailModalOverlay.setAttribute('aria-hidden', 'true'); }
+      });
+      if (emailModalOverlay) emailModalOverlay.addEventListener('click', function(e) {
+        if (e.target === emailModalOverlay) { emailModalOverlay.classList.remove('visible'); emailModalOverlay.setAttribute('aria-hidden', 'true'); }
+      });
+      if (emailSendBtn && emailTo && emailMsg) {
+        emailSendBtn.addEventListener('click', function() {
+          var to = (emailTo.value || '').trim();
+          if (!to) { emailMsg.textContent = 'Please enter an email address.'; emailMsg.className = 'email-msg error'; return; }
+          if (to.indexOf('@') === -1 || to.indexOf('.') === -1) { emailMsg.textContent = 'Please enter a valid email.'; emailMsg.className = 'email-msg error'; return; }
+          var currentId = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+          if (!currentId) { emailMsg.textContent = 'No test selected.'; emailMsg.className = 'email-msg error'; return; }
+          emailMsg.textContent = 'Sending…';
+          emailMsg.className = 'email-msg';
+          var includePdf = emailIncludePdf && emailIncludePdf.checked;
+          fetch(baseUrl() + '/' + encodeURIComponent(currentId) + '/send-email', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to_email: to, include_pdf: !!includePdf })
+          }).then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+            .then(function(result) {
+              if (result.ok) {
+                emailMsg.textContent = 'Email sent successfully.';
+                emailMsg.className = 'email-msg success';
+              } else {
+                emailMsg.textContent = result.data && result.data.error ? result.data.error : 'Failed to send email.';
+                emailMsg.className = 'email-msg error';
+              }
+            })
+            .catch(function() {
+              emailMsg.textContent = 'Failed to send email.';
+              emailMsg.className = 'email-msg error';
+            });
+        });
+      }
+
+      var viewAnotherBtn = document.getElementById('viewAnotherBtn');
+      var viewAnotherOverlay = document.getElementById('viewAnotherModalOverlay');
+      var viewAnotherList = document.getElementById('viewAnotherModalList');
+      var viewAnotherSortBar = document.getElementById('viewAnotherModalSort');
+      var viewAnotherSortSelect = document.getElementById('viewAnotherSortBy');
+      var viewAnotherModalClose = document.getElementById('viewAnotherModalClose');
+      if (!viewAnotherBtn || !viewAnotherOverlay || !viewAnotherList) return;
+      var viewAnotherTests = [];
+      function formatListDate(isoStr) {
+        if (!isoStr || typeof isoStr !== 'string') return '—';
+        try {
+          var d = new Date(isoStr);
+          if (isNaN(d.getTime())) return isoStr.slice(0, 10);
+          return d.getDate() + ' ' + d.toLocaleString('en', { month: 'short' }) + ' ' + d.getFullYear();
+        } catch (e) { return isoStr.slice(0, 10); }
+      }
+      function formatJumpHeight(m) {
+        if (m == null || typeof m !== 'number') return '—';
+        return Number(m).toFixed(3) + ' m';
+      }
+      function sortTests(tests, order) {
+        var list = tests.slice();
+        if (order === 'date-desc') list.sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
+        else if (order === 'date-asc') list.sort(function(a, b) { return (a.created_at || '').localeCompare(b.created_at || ''); });
+        else if (order === 'height-desc') list.sort(function(a, b) { return (b.jump_height_m != null ? b.jump_height_m : -1) - (a.jump_height_m != null ? a.jump_height_m : -1); });
+        else if (order === 'height-asc') list.sort(function(a, b) { return (a.jump_height_m != null ? a.jump_height_m : 1e9) - (b.jump_height_m != null ? b.jump_height_m : 1e9); });
+        return list;
+      }
+      function renderViewAnotherList(tests, order) {
+        order = order || (viewAnotherSortSelect ? viewAnotherSortSelect.value : 'date-desc');
+        var sorted = sortTests(tests, order);
+        var currentId = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+        viewAnotherList.innerHTML = '';
+        sorted.forEach(function(t) {
+          var li = document.createElement('li');
+          li.className = 'compare-select-row';
+          li.dataset.id = t.id;
+          var dateStr = formatListDate(t.created_at);
+          var heightStr = formatJumpHeight(t.jump_height_m);
+          var durStr = t.test_duration != null ? Number(t.test_duration).toFixed(2) + ' s' : '—';
+          var currentLabel = t.id === currentId ? ' <span style="color:var(--muted);font-size:0.8em;">(current)</span>' : '';
+          li.innerHTML = '<div class="compare-item-main">' +
+            '<span class="compare-item-date">' + escapeHtml(dateStr) + '</span>' +
+            '<span class="compare-item-height">' + escapeHtml(heightStr) + '</span>' +
+            '<span class="duration">' + escapeHtml(durStr) + '</span>' + currentLabel +
+            '</div>';
+          viewAnotherList.appendChild(li);
+        });
+      }
+      viewAnotherModalClose.addEventListener('click', function() {
+        viewAnotherOverlay.classList.remove('visible');
+        viewAnotherOverlay.setAttribute('aria-hidden', 'true');
+      });
+      viewAnotherOverlay.addEventListener('click', function(e) {
+        if (e.target === viewAnotherOverlay) {
+          viewAnotherOverlay.classList.remove('visible');
+          viewAnotherOverlay.setAttribute('aria-hidden', 'true');
+        }
+      });
+      if (viewAnotherSortSelect) viewAnotherSortSelect.addEventListener('change', function() {
+        if (viewAnotherTests.length) renderViewAnotherList(viewAnotherTests, viewAnotherSortSelect.value);
+      });
+      viewAnotherList.addEventListener('click', function(e) {
+        var li = e.target && e.target.closest && e.target.closest('li.compare-select-row');
+        if (!li || !li.dataset.id) return;
+        var id = li.dataset.id;
+        viewAnotherList.innerHTML = '<li class="empty">Loading…</li>';
+        fetch(baseUrl() + '/' + encodeURIComponent(id) + '/viz')
+          .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function(viz) {
+            primaryData = viz;
+            if (typeof window !== 'undefined') window.CURRENT_JUMP_TEST_ID = id;
+            applyPrimaryView(viz);
+            renderComparison(null, null);
+            viewAnotherOverlay.classList.remove('visible');
+            viewAnotherOverlay.setAttribute('aria-hidden', 'true');
+          })
+          .catch(function() { viewAnotherList.innerHTML = '<li class="empty">Failed to load test.</li>'; });
+      });
+      viewAnotherBtn.addEventListener('click', function() {
+        var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         if (!athleteId) return;
-        listEl.innerHTML = '<li class="empty">Loading…</li>';
-        showModal();
-        var base = baseUrl();
-        fetch(base + '/by-athlete/' + encodeURIComponent(athleteId))
+        viewAnotherList.innerHTML = '<li class="empty">Loading…</li>';
+        if (viewAnotherSortBar) viewAnotherSortBar.style.display = 'none';
+        viewAnotherOverlay.classList.add('visible');
+        viewAnotherOverlay.setAttribute('aria-hidden', 'false');
+        fetch(baseUrl() + '/by-athlete/' + encodeURIComponent(athleteId))
           .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function(tests) {
             if (!Array.isArray(tests)) tests = [];
-            var other = tests.filter(function(t) { return t.id && t.id !== currentId; });
-            listEl.innerHTML = '';
-            if (other.length === 0) {
-              listEl.innerHTML = '<li class="empty">No other tests to compare.</li>';
+            viewAnotherTests = tests;
+            viewAnotherList.innerHTML = '';
+            if (viewAnotherTests.length === 0) {
+              viewAnotherList.innerHTML = '<li class="empty">No tests found.</li>';
               return;
             }
-            other.forEach(function(t) {
-              var li = document.createElement('li');
-              var typeStr = escapeHtml(t.test_type || 'CMJ');
-              var idStr = t.id ? escapeHtml(t.id.substring(0, 8)) + '\u2026' : '';
-              var durStr = t.test_duration != null ? escapeHtml(Number(t.test_duration).toFixed(2) + ' s') : '';
-              li.innerHTML = '<span>' + typeStr + ' \u00b7 ' + idStr + '</span><span class="duration">' + durStr + '</span>';
-              li.dataset.id = t.id;
-              li.addEventListener('click', function() {
-                var id = this.dataset.id;
-                if (!id) return;
-                listEl.innerHTML = '<li class="empty">Loading…</li>';
-                fetch(base + '/' + encodeURIComponent(id) + '/viz')
-                  .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-                  .then(function(viz) {
-                    compareData = viz;
-                    renderComparison(primaryData, compareData);
-                    hideModal();
-                  })
-                  .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load test.</li>'; });
-              });
-              listEl.appendChild(li);
-            });
+            if (viewAnotherSortBar) viewAnotherSortBar.style.display = 'flex';
+            renderViewAnotherList(viewAnotherTests, viewAnotherSortSelect ? viewAnotherSortSelect.value : 'date-desc');
           })
-          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load list.</li>'; });
+          .catch(function() { viewAnotherList.innerHTML = '<li class="empty">Failed to load list.</li>'; });
       });
     })();
   </script>
