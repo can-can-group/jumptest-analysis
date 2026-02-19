@@ -129,6 +129,26 @@ Open `web/viewer.html` in a browser and use **Load visualization JSON** to selec
 - **Total, left, and right force** vs time.
 - Side panels listing phase time ranges and key point times/values.
 
+## Drop jump analysis
+
+The same viewer can display **drop jump (DJ)** trials. DJ analysis detects **eight key points** (drop landing, peak impact, contact through point, start of concentric, peak drive-off, take-off, flight land, peak landing force) using a **three-peak + one-valley** model over the contact phase, then computes **metrics** (contact time, flight time, jump height, RSI, braking/propulsive impulse and RFD, peak forces, phase durations) and **classification** (high reactive vs low reactive) from the curve shape and time spacing of the points.
+
+**Run DJ export (batch):**
+
+```bash
+PYTHONPATH=. python3 script/export_dj_viz.py [path_to_dj_json_dir]
+```
+
+- Default input: `saved_raw_data/dj-data/` (all `*.json` with `test_type` DJ).
+- Output: `output/<stem>_viz.json` per file and `output/dj_detection_results.json` (summary of all trials).
+
+Open `web/viewer.html` and load any `*_viz.json` to see phases, key points, and metrics.
+
+**Documentation:**
+
+- **[docs/DROP_JUMP_ANALYSIS.md](docs/DROP_JUMP_ANALYSIS.md)** – Overview: what the pipeline does, how points are detected (episodes → contact start → take-off → three peaks + CTP → second landing), how classification and metrics work, how to run the analysis (export script vs in code), and where the code lives.
+- **[docs/DROP_JUMP_DETECTION_ALGORITHM.md](docs/DROP_JUMP_DETECTION_ALGORITHM.md)** – Detailed algorithm: thresholds, validation windows, and constants for each key point and phase.
+
 ## Video–Data Sync Visualizer
 
 A separate visualizer that plays a jump-test video in sync with the force chart: as the video plays, a playhead on the chart shows the current time. Click on the chart to seek the video.
@@ -166,7 +186,7 @@ The output video stacks the source video and the force chart; a playhead moves i
 
 - **src/data**: load JSON, validate, build time vector (`load.py`, `types.py`).
 - **src/config**: default thresholds and options (`CMJConfig`); tune for your API (e.g. `min_p1_p2_separation_ms`, take-off/landing thresholds).
-- **src/detect**: bodyweight/mass (`baseline.py`), take-off/landing/onset (`events.py`), eccentric end and v=0 (`phases.py`), P1/P2 detection (`structural_peaks.py`), trial validity (`validity.py`).
+- **src/detect**: bodyweight/mass (`baseline.py`), take-off/landing/onset (`events.py`), eccentric end and v=0 (`phases.py`), P1/P2 detection (`structural_peaks.py`), trial validity (`validity.py`). **Drop jump:** `drop_jump.py` (contact episodes, drop landing, take-off, three-peak + CTP detection, metrics, high/low reactive classification).
 - **src/physics**: COM velocity from force (`kinematics.py`), jump height, power, RFD, phase impulses, P1/P2 (`metrics.py`), left/right asymmetry (`asymmetry.py`).
 - **src/analysis_response**: builds the `analysis` block (phases, key_points, metrics as key → `{ value, explanation }`) for API and UI.
 - **src/export_viz**: builds the full visualization payload (time, force, phases, key_points, metrics, events, analysis); used by the CLI export and by your service.
