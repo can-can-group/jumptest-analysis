@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CMJ Force Plate — Phase & Key Point Viewer</title>
+  <title>Force Plate — Phase & Key Point Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
   <script defer>
@@ -329,8 +329,14 @@
 </head>
 <body>
   <div class="container">
-    <h1>CMJ Force Plate — Phase & Key Point Viewer</h1>
-    <p class="subtitle" id="subtitle">Jump test results from the API.</p>
+    <h1>Force Plate — Phase & Key Point Viewer</h1>
+    <p class="subtitle" id="subtitle">Jump test results.</p>
+
+    <div id="standaloneToolbar" class="toolbar no-print" style="margin-bottom: 1rem;">
+      <label>Load visualization JSON
+        <input type="file" id="fileInputViz" accept=".json">
+      </label>
+    </div>
 
     <div id="compareToolbar" class="toolbar no-print" style="display: none; margin-bottom: 1rem;">
       <button type="button" class="compare-btn" id="downloadPdfBtn">Download as PDF</button>
@@ -446,7 +452,10 @@
       'Eccentric - Braking': 'rgba(255, 140, 0, 0.22)',
       'Concentric': 'rgba(180, 180, 180, 0.5)',
       'Flight': 'rgba(0, 0, 0, 0.06)',
-      'Landing': 'rgba(255, 160, 122, 0.22)'
+      'Landing': 'rgba(255, 160, 122, 0.22)',
+      // DJ phases
+      'Pre-jump': 'rgba(51, 51, 51, 0.06)',
+      'Contact': 'rgba(255, 140, 0, 0.18)',
     };
     function phaseLabelShort(name) {
       if (name === 'Eccentric - Unloading') return 'Eccentric';
@@ -459,7 +468,10 @@
       'Eccentric - Braking': '#FF8C00',
       'Concentric': '#333333',
       'Flight': '#000000',
-      'Landing': '#FFA07A'
+      'Landing': '#FFA07A',
+      // DJ phases
+      'Pre-jump': '#999999',
+      'Contact': '#FF8C00',
     };
     function getPhaseAtTime(phases, t) {
       for (let i = phases.length - 1; i >= 0; i--) {
@@ -473,7 +485,7 @@
     function keyPointLineColor(name) {
       const orange = '#FF8C00';
       const grey = '#999999';
-      if (/Start of movement|Minimum force|Max RFD/i.test(name)) return orange;
+      if (/Start of movement|Minimum force|Max RFD|Drop Landing|Peak Impact|Contact Through|Peak Drive/i.test(name)) return orange;
       return grey;
     }
 
@@ -884,18 +896,30 @@
       const leftPoints = time.map((t, i) => ({ x: t, y: leftForce[i] }));
       const rightPoints = time.map((t, i) => ({ x: t, y: rightForce[i] }));
 
-      // Fill-under-curve for Eccentric (Unloading + Braking) and Concentric
-      const unloadingPhaseForFill = phases.find(p => p.name === 'Eccentric - Unloading');
-      const brakingPhaseForFill = phases.find(p => p.name === 'Eccentric - Braking');
-      const eccentricStart = unloadingPhaseForFill ? unloadingPhaseForFill.start_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.start_time_s);
-      const eccentricEnd = brakingPhaseForFill ? brakingPhaseForFill.end_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.end_time_s);
-      const eccentricFillPoints = (eccentricStart != null && eccentricEnd != null)
-        ? buildFillUnderCurve(time, force, eccentricStart, eccentricEnd, 'rgba(255, 140, 0, 0.25)')
-        : [];
-      const concentricPhase = phases.find(p => /Concentric/i.test(p.name));
-      const concentricFillPoints = concentricPhase
-        ? buildFillUnderCurve(time, force, concentricPhase.start_time_s, concentricPhase.end_time_s, 'rgba(224, 224, 224, 0.85)')
-        : [];
+      const isDJ = (data.test_type || '').toUpperCase() === 'DJ';
+
+      // Fill-under-curve: CMJ uses Eccentric + Concentric; DJ uses Contact
+      let eccentricFillPoints = [];
+      let concentricFillPoints = [];
+      let contactFillPoints = [];
+      if (isDJ) {
+        const contactPhase = phases.find(p => p.name === 'Contact');
+        if (contactPhase) {
+          contactFillPoints = buildFillUnderCurve(time, force, contactPhase.start_time_s, contactPhase.end_time_s, 'rgba(255, 140, 0, 0.18)');
+        }
+      } else {
+        const unloadingPhaseForFill = phases.find(p => p.name === 'Eccentric - Unloading');
+        const brakingPhaseForFill = phases.find(p => p.name === 'Eccentric - Braking');
+        const eccentricStart = unloadingPhaseForFill ? unloadingPhaseForFill.start_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.start_time_s);
+        const eccentricEnd = brakingPhaseForFill ? brakingPhaseForFill.end_time_s : (phases.find(p => /Eccentric/i.test(p.name))?.end_time_s);
+        eccentricFillPoints = (eccentricStart != null && eccentricEnd != null)
+          ? buildFillUnderCurve(time, force, eccentricStart, eccentricEnd, 'rgba(255, 140, 0, 0.25)')
+          : [];
+        const concentricPhase = phases.find(p => /Concentric/i.test(p.name));
+        concentricFillPoints = concentricPhase
+          ? buildFillUnderCurve(time, force, concentricPhase.start_time_s, concentricPhase.end_time_s, 'rgba(224, 224, 224, 0.85)')
+          : [];
+      }
 
       // Key point markers on the curve: (x, y) and color per point
       const keyPointData = data.key_points.map(kp => ({
@@ -903,18 +927,18 @@
         y: kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0)
       }));
       const keyPointColors = data.key_points.map(kp =>
-        /Start of movement|Minimum force|Max RFD/i.test(kp.name) ? '#FF8C00' : '#333333'
+        /Start of movement|Minimum force|Max RFD|Drop Landing|Peak Impact|Contact Through|Peak Drive/i.test(kp.name) ? '#FF8C00' : '#333333'
       );
 
       const annotations = {};
       const yMaxForce = Math.max(...force);
 
-      // Main phases: merge Eccentric sub-phases into one "Eccentric" bracket; sub-phases drawn below
-      const unloadingPhase = phases.find(p => p.name === 'Eccentric - Unloading');
-      const brakingPhase = phases.find(p => p.name === 'Eccentric - Braking');
+      // Main phases: merge Eccentric sub-phases into one "Eccentric" bracket for CMJ; DJ uses phases as-is
+      const unloadingPhase = isDJ ? null : phases.find(p => p.name === 'Eccentric - Unloading');
+      const brakingPhase = isDJ ? null : phases.find(p => p.name === 'Eccentric - Braking');
       const mainPhases = [];
       for (const p of phases) {
-        if (p.name === 'Eccentric - Unloading' || p.name === 'Eccentric - Braking') {
+        if (!isDJ && (p.name === 'Eccentric - Unloading' || p.name === 'Eccentric - Braking')) {
           if (mainPhases.every(m => m.name !== 'Eccentric')) {
             const start = unloadingPhase ? unloadingPhase.start_time_s : p.start_time_s;
             const end = brakingPhase ? brakingPhase.end_time_s : p.end_time_s;
@@ -946,7 +970,7 @@
         };
       });
 
-      // Sub-phases (Unloading, Braking): dotted line and labels — place below P1/P2 when they are high to avoid overlap
+      // Sub-phases (Unloading, Braking): dotted line and labels — CMJ only
       const keyPointYs = (data.key_points || []).map(kp => kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0));
       const highKeyPointYs = keyPointYs.filter(y => y > yMaxForce * 0.5);
       const minHighKeyY = highKeyPointYs.length > 0 ? Math.min(...highKeyPointYs) : null;
@@ -955,6 +979,7 @@
         ? Math.max(yMaxForce * 0.5, Math.min(defaultSubY, minHighKeyY * 0.78))
         : defaultSubY;
       [unloadingPhase, brakingPhase].filter(Boolean).forEach((p, i) => {
+        if (isDJ) return;
         const subLabel = p.name === 'Eccentric - Unloading' ? 'Unloading' : 'Braking';
         annotations[`line_sub_${i}`] = {
           type: 'line',
@@ -979,8 +1004,8 @@
         };
       });
 
-      // Vertical separator between Unloading and Braking (at min-force boundary) so the two sub-phases are clearly distinct
-      if (unloadingPhase && brakingPhase) {
+      // Vertical separator between Unloading and Braking — CMJ only
+      if (!isDJ && unloadingPhase && brakingPhase) {
         const boundaryTime = unloadingPhase.end_time_s;
         const sepHeight = yMaxForce * 0.06;
         annotations.subphase_separator = {
@@ -995,27 +1020,46 @@
         };
       }
 
-      // Key point labels: always visible on chart, no vertical lines; staggered so they don't overlap
+      // Key point labels: position by time proximity so labels don't overlap when points are close
       function keyPointLabelText(name) {
         if (/Start of movement/i.test(name)) return 'Start of movement';
         if (/Minimum force/i.test(name)) return 'Min force';
         if (/P1 peak/i.test(name)) return 'P1';
         if (/P2 peak/i.test(name)) return 'P2';
+        // DJ key points
+        if (/Drop Landing/i.test(name)) return 'Drop Landing';
+        if (/Peak Impact Force/i.test(name)) return 'Peak Impact';
+        if (/Contact Through/i.test(name)) return 'CTP';
+        if (/Start of Concentric/i.test(name)) return 'Conc. Start';
+        if (/Peak Drive-Off/i.test(name)) return 'Peak Drive-Off';
+        if (/Flight Land/i.test(name)) return 'Flight Land';
+        if (/Peak Landing Force/i.test(name)) return 'Landing Peak';
         return name;
       }
-      data.key_points.forEach((kp, i) => {
-        const yVal = kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0);
+      const TIME_PROXIMITY_S = 0.06; // points within 60 ms get different vertical slots
+      const Y_OFFSETS = [-22, 0, 22, -28, 8, 28]; // vertical slots (px) to stack labels
+      const X_OFFSETS = [-14, 14]; // alternate left/right for overlapping labels
+      const keyPointsWithSlots = data.key_points.map((kp, i) => {
+        const t = kp.time_s;
+        const sameCluster = data.key_points.filter((o, j) => j !== i && Math.abs(o.time_s - t) <= TIME_PROXIMITY_S);
+        const slotIndex = sameCluster.filter(o => o.time_s < t || (o.time_s === t && data.key_points.indexOf(o) < i)).length;
+        const row = slotIndex % Y_OFFSETS.length;
+        const col = slotIndex % X_OFFSETS.length;
+        return { kp, i, yVal: kp.value_N != null ? kp.value_N : (force[kp.index] ?? 0), row, col };
+      });
+      keyPointsWithSlots.forEach(({ kp, i, yVal, row, col }) => {
         const isOrange = /Start of movement|Minimum force/i.test(kp.name);
-        const row = i % 3;
-        const col = Math.floor(i / 3) % 2;
+        const yAdjust = Y_OFFSETS[row];
+        const xAdjust = X_OFFSETS[col];
+        const yPos = yAdjust < 0 ? 'start' : yAdjust > 0 ? 'end' : 'center';
         annotations[`label_${i}`] = {
           type: 'label',
           xValue: kp.time_s,
           yValue: yVal,
           content: keyPointLabelText(kp.name),
-          position: { x: col === 0 ? 'end' : 'start', y: row === 0 ? 'start' : row === 1 ? 'center' : 'end' },
-          xAdjust: (col === 0 ? -14 : 14),
-          yAdjust: row === 0 ? -16 : row === 1 ? 0 : 16,
+          position: { x: col === 0 ? 'end' : 'start', y: yPos },
+          xAdjust,
+          yAdjust,
           backgroundColor: 'rgba(255,255,255,0.95)',
           borderColor: isOrange ? 'rgba(255, 140, 0, 0.5)' : 'rgba(0,0,0,0.15)',
           borderWidth: 1,
@@ -1049,7 +1093,7 @@
       const minForceKp = data.key_points.find(k => /Minimum force/i.test(k.name));
       const takeoffKp = data.key_points.find(k => /Take-off/i.test(k.name));
       const impulseStartKp = minForceKp || startKp;
-      if (impulseStartKp && takeoffKp && yMaxForce > 0) {
+      if (!isDJ && impulseStartKp && takeoffKp && yMaxForce > 0) {
         annotations.impulse = {
           type: 'box',
           xMin: impulseStartKp.time_s,
@@ -1087,6 +1131,16 @@
           data: concentricFillPoints,
           borderColor: 'transparent',
           backgroundColor: 'rgba(200, 200, 200, 0.45)',
+          fill: true,
+          pointRadius: 0,
+          tension: 0.1,
+          order: 3
+        }] : []),
+        ...(contactFillPoints.length > 0 ? [{
+          label: 'Contact (area)',
+          data: contactFillPoints,
+          borderColor: 'transparent',
+          backgroundColor: 'rgba(255, 140, 0, 0.18)',
           fill: true,
           pointRadius: 0,
           tension: 0.1,
@@ -1140,7 +1194,7 @@
               labels: {
                 color: '#333333',
                 font: { size: 11 },
-                filter: (item, chart) => {
+                filter: (item) => {
                   const label = item.text || '';
                   return !/\(area\)|Key points/i.test(label);
                 }
@@ -1207,6 +1261,12 @@
         document.getElementById('chartWrap').style.display = 'block';
         document.getElementById('sections').style.display = 'flex';
         document.getElementById('placeholder').style.display = 'none';
+        var testType = data.test_type || '';
+        if (testType === 'DJ') {
+          document.querySelector('h1').textContent = 'Drop Jump — Phase & Key Point Viewer';
+        } else if (testType === 'CMJ') {
+          document.querySelector('h1').textContent = 'CMJ Force Plate — Phase & Key Point Viewer';
+        }
         var aid = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         if (aid) document.getElementById('compareToolbar').style.display = 'flex';
       } catch (err) {
@@ -1222,14 +1282,14 @@
     function runViewerLoader() {
       try {
         var placeholderEl = document.getElementById('placeholder');
+
+        // 1) Server-injected payload takes precedence
         var dataEl = document.getElementById('viz-data-payload');
-        if (dataEl && dataEl.textContent) {
+        if (dataEl && dataEl.textContent && dataEl.textContent.trim()) {
           try {
             var data = JSON.parse(dataEl.textContent);
             primaryData = data;
-            if (typeof applyPrimaryView === 'function') {
-              applyPrimaryView(data);
-            }
+            applyPrimaryView(data);
           } catch (parseErr) {
             if (placeholderEl) {
               placeholderEl.textContent = 'Invalid data from server.';
@@ -1238,8 +1298,54 @@
           }
           return;
         }
+
+        // 2) Query param: ?viz_url=<path>
+        var params = new URLSearchParams(window.location.search);
+        var vizUrl = params.get('viz_url');
+        if (vizUrl) {
+          if (placeholderEl) placeholderEl.textContent = 'Loading…';
+          fetch(vizUrl)
+            .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+            .then(function(data) {
+              primaryData = data;
+              applyPrimaryView(data);
+              document.getElementById('standaloneToolbar').style.display = 'none';
+            })
+            .catch(function(err) {
+              if (placeholderEl) {
+                placeholderEl.textContent = 'Failed to load ' + vizUrl + ': ' + (err.message || err);
+                placeholderEl.style.color = '#c53030';
+              }
+            });
+          return;
+        }
+
+        // 3) Query param: ?test_id=<id> with data-api-base
+        var testId = params.get('test_id');
+        if (testId) {
+          var container = document.getElementById('viewerContainer') || document.querySelector('[data-api-base]');
+          var apiBase = container ? container.getAttribute('data-api-base') : '';
+          if (apiBase) {
+            if (placeholderEl) placeholderEl.textContent = 'Loading…';
+            fetch(apiBase + '/' + encodeURIComponent(testId) + '/viz')
+              .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+              .then(function(data) {
+                primaryData = data;
+                applyPrimaryView(data);
+              })
+              .catch(function(err) {
+                if (placeholderEl) {
+                  placeholderEl.textContent = 'Failed to load test ' + testId + ': ' + (err.message || err);
+                  placeholderEl.style.color = '#c53030';
+                }
+              });
+            return;
+          }
+        }
+
+        // 4) No data source — show placeholder with file picker instructions
         if (placeholderEl) {
-          placeholderEl.innerHTML = 'This page must be opened from the API using a view link (e.g. /jumptest/<strong>&lt;test_id&gt;</strong>/view). Data is provided by the server only.';
+          placeholderEl.innerHTML = 'Load a visualization JSON file using the button above, or open with <strong>?viz_url=&lt;path&gt;</strong> in the URL.';
         }
       } catch (e) {
         var placeholderEl = document.getElementById('placeholder');
@@ -1247,9 +1353,37 @@
           placeholderEl.textContent = 'Error: ' + (e && e.message ? e.message : String(e));
           placeholderEl.style.color = '#c53030';
         }
-        if (typeof console !== 'undefined' && console.error) console.error('[CMJ viewer]', e);
+        if (typeof console !== 'undefined' && console.error) console.error('[viewer]', e);
       }
     }
+
+    // File input handler for standalone mode
+    (function initFileInput() {
+      var fileInput = document.getElementById('fileInputViz');
+      if (!fileInput) return;
+      fileInput.addEventListener('change', function(e) {
+        var file = e.target.files && e.target.files[0];
+        if (!file) return;
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          try {
+            var data = JSON.parse(ev.target.result);
+            primaryData = data;
+            applyPrimaryView(data);
+            document.getElementById('standaloneToolbar').style.display = 'none';
+          } catch (err) {
+            var placeholderEl = document.getElementById('placeholder');
+            if (placeholderEl) {
+              placeholderEl.textContent = 'Invalid JSON: ' + (err.message || err);
+              placeholderEl.style.color = '#c53030';
+              placeholderEl.style.display = 'block';
+            }
+          }
+        };
+        reader.readAsText(file);
+      });
+    })();
+
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', runViewerLoader);
     } else {

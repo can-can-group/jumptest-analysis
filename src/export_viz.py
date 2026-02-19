@@ -1,4 +1,4 @@
-"""Export CMJ analysis to a single JSON for the JavaScript chart viewer."""
+"""Export CMJ/DJ analysis to a single JSON for the JavaScript chart viewer."""
 import json
 from pathlib import Path
 from typing import Any, Dict, List
@@ -7,6 +7,7 @@ import numpy as np
 
 from .analysis_response import build_analysis_response
 from .data.types import CMJTrial, CMJEvents, TrialValidity
+from .detect.drop_jump import DropJumpPoints, DropJumpPhases
 
 
 def _to_list(arr: np.ndarray) -> List[float]:
@@ -146,6 +147,111 @@ def build_visualization_payload(
             "landing": events.landing,
             "eccentric_end": events.eccentric_end,
         },
+        "metrics": metrics_ser,
+    }
+    payload["analysis"] = build_analysis_response(payload)
+    return payload
+
+
+def build_dj_visualization_payload(
+    trial: CMJTrial,
+    bodyweight: float,
+    points: DropJumpPoints,
+    phases: DropJumpPhases,
+    validity: TrialValidity,
+    metrics: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Build a visualization payload for a Drop Jump trial.
+
+    Same JSON shape as CMJ (time_s, force_N, phases, key_points, metrics, validity)
+    but with DJ-specific phases and key points.
+    """
+    t = trial.t
+    n = trial.sample_count
+
+    def _phase(start_t: float, end_t: float, **kwargs: Any) -> Dict[str, Any]:
+        d = dict(kwargs)
+        d["duration_s"] = float(end_t - start_t)
+        return d
+
+    # DJ Phases: Pre-jump, Contact, Flight, Landing
+    dj_phases: List[Dict[str, Any]] = []
+    contact_start = points.drop_landing
+    take_off = points.take_off
+    flight_land = points.flight_land
+
+    if contact_start is not None and contact_start > 0:
+        st, et = 0.0, float(t[contact_start])
+        dj_phases.append(_phase(st, et, name="Pre-jump",
+            description="Athlete on the box or in freefall before landing",
+            start_index=0, end_index=contact_start - 1, start_time_s=st, end_time_s=et))
+
+    if contact_start is not None and take_off is not None:
+        st, et = float(t[contact_start]), float(t[take_off])
+        dj_phases.append(_phase(st, et, name="Contact",
+            description="Ground contact from drop landing through propulsion to take-off",
+            start_index=contact_start, end_index=take_off, start_time_s=st, end_time_s=et))
+
+    if take_off is not None and flight_land is not None:
+        st, et = float(t[take_off]), float(t[flight_land])
+        dj_phases.append(_phase(st, et, name="Flight",
+            description="Airborne; force plate reads near zero",
+            start_index=take_off, end_index=flight_land, start_time_s=st, end_time_s=et))
+
+    if flight_land is not None:
+        st, et = float(t[flight_land]), float(t[-1])
+        dj_phases.append(_phase(st, et, name="Landing",
+            description="Impact and absorption after reactive jump",
+            start_index=flight_land, end_index=n - 1, start_time_s=st, end_time_s=et))
+
+    # DJ Key Points (only include non-None)
+    key_points: List[Dict[str, Any]] = []
+    _dj_kp_defs = [
+        ("Drop Landing", points.drop_landing),
+        ("Peak Impact Force", points.peak_impact_force),
+        ("Contact Through Point", points.contact_through_point),
+        ("Start of Concentric", points.start_of_concentric),
+        ("Peak Drive-Off Force", points.peak_drive_off_force),
+        ("Take-off", points.take_off),
+        ("Flight Land", points.flight_land),
+        ("Peak Landing Force", points.peak_landing_force),
+    ]
+    for kp_name, kp_idx in _dj_kp_defs:
+        if kp_idx is not None and 0 <= kp_idx < n:
+            key_points.append({
+                "name": kp_name,
+                "index": kp_idx,
+                "time_s": float(t[kp_idx]),
+                "value_N": float(trial.force[kp_idx]),
+            })
+
+    # Serialize metrics
+    metrics_ser: Dict[str, Any] = {}
+    for k, v in metrics.items():
+        if v is None:
+            metrics_ser[k] = None
+        elif isinstance(v, (int, float, str, bool)):
+            metrics_ser[k] = v
+        elif isinstance(v, np.floating):
+            metrics_ser[k] = float(v)
+        elif isinstance(v, np.integer):
+            metrics_ser[k] = int(v)
+        else:
+            metrics_ser[k] = v
+
+    payload = {
+        "athlete_id": trial.athlete_id,
+        "test_type": "DJ",
+        "sample_rate": trial.sample_rate,
+        "bodyweight_N": bodyweight,
+        "validity": {"is_valid": validity.is_valid, "flags": validity.flags},
+        "time_s": _to_list(trial.t),
+        "force_N": _to_list(trial.force),
+        "left_force_N": _to_list(trial.left_force),
+        "right_force_N": _to_list(trial.right_force),
+        "phases": dj_phases,
+        "key_points": key_points,
+        "events": points.to_dict(),
         "metrics": metrics_ser,
     }
     payload["analysis"] = build_analysis_response(payload)
