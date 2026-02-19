@@ -145,12 +145,21 @@ All of the following are returned by `compute_dj_metrics()` and included in `det
 | **flight_time_s** | (flight_land − take_off) / sample_rate when both are set | s |
 | **jump_height_flight_m** | g × flight_time_s² / 8 (same formula as CMJ flight-time height) | m |
 | **rsi_dj** | jump_height_flight_m / contact_time_s (Reactive Strength Index) | m/s |
+| **rsi_flight_contact_ratio** | flight_time_s / contact_time_s (flight time : contact time ratio) | — |
+| **time_to_peak_impact_ms** | Time from contact_start to peak impact force | ms |
+| **peak_impact_force_N** | Force at the peak impact key point | N |
+| **peak_drive_off_force_N** | Force at the peak drive-off key point | N |
+| **peak_impact_force_pct_bw** | peak_impact_force_N / bodyweight × 100 | % |
+| **peak_drive_off_force_pct_bw** | peak_drive_off_force_N / bodyweight × 100 | % |
+| **mean_braking_force_N** | Mean F over [contact_start, CTP] | N |
+| **mean_propulsive_force_N** | Mean F over [CTP, take_off] | N |
+| **total_impulse_Ns** | braking_impulse_Ns + propulsive_impulse_Ns (net impulse) | N·s |
+| **ctp_force_N** | Force at the contact through point (trough) | N |
+| **average_rfd_braking_N_s** | (peak_impact_force − F at contact_start) / time_to_peak_impact | N/s |
 | **braking_impulse_Ns** | ∫(F − BW) from contact_start to CTP | N·s |
 | **propulsive_impulse_Ns** | ∫(F − BW) from CTP to take_off | N·s |
 | **max_rfd_braking_N_s** | max(dF/dt) over [contact_start, CTP] | N/s |
 | **max_rfd_propulsive_N_s** | max(dF/dt) over [CTP, take_off] | N/s |
-| **peak_impact_force_N** | Force at the peak impact key point | N |
-| **peak_drive_off_force_N** | Force at the peak drive-off key point | N |
 | **braking_duration_ms** | (CTP − contact_start) / sample_rate × 1000 | ms |
 | **propulsive_duration_ms** | (take_off − CTP) / sample_rate × 1000 | ms |
 | **dj_classification** | high_reactive \| low_reactive \| unknown (see below) | — |

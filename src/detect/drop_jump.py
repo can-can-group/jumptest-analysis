@@ -1083,8 +1083,17 @@ def compute_dj_metrics(
         "flight_time_s": None,
         "jump_height_flight_m": None,
         "rsi_dj": None,
+        "rsi_flight_contact_ratio": None,
+        "time_to_peak_impact_ms": None,
         "peak_impact_force_N": None,
         "peak_drive_off_force_N": None,
+        "peak_impact_force_pct_bw": None,
+        "peak_drive_off_force_pct_bw": None,
+        "mean_braking_force_N": None,
+        "mean_propulsive_force_N": None,
+        "total_impulse_Ns": None,
+        "ctp_force_N": None,
+        "average_rfd_braking_N_s": None,
         "braking_duration_ms": None,
         "propulsive_duration_ms": None,
         "dj_classification": "unknown",
@@ -1107,12 +1116,38 @@ def compute_dj_metrics(
         out["jump_height_flight_m"] = round(G * (t_flight ** 2) / 8.0, 4)
     if out["jump_height_flight_m"] is not None and contact_time_s > 0:
         out["rsi_dj"] = round(out["jump_height_flight_m"] / contact_time_s, 4)
+    if out["flight_time_s"] is not None and contact_time_s > 0:
+        out["rsi_flight_contact_ratio"] = round(out["flight_time_s"] / contact_time_s, 4)
+
+    # Time to peak impact (ms) — from contact start to peak impact
+    p_impact = points.peak_impact_force
+    if p_impact is not None and cs is not None and p_impact >= cs and sample_rate > 0:
+        out["time_to_peak_impact_ms"] = round(1000.0 * (p_impact - cs) / sample_rate, 2)
 
     # Peak impact and drive-off force (N)
     if points.peak_impact_force is not None and 0 <= points.peak_impact_force < n:
         out["peak_impact_force_N"] = round(float(force[points.peak_impact_force]), 1)
     if points.peak_drive_off_force is not None and 0 <= points.peak_drive_off_force < n:
         out["peak_drive_off_force_N"] = round(float(force[points.peak_drive_off_force]), 1)
+    if bodyweight > 0:
+        if out["peak_impact_force_N"] is not None:
+            out["peak_impact_force_pct_bw"] = round(100.0 * out["peak_impact_force_N"] / bodyweight, 2)
+        if out["peak_drive_off_force_N"] is not None:
+            out["peak_drive_off_force_pct_bw"] = round(100.0 * out["peak_drive_off_force_N"] / bodyweight, 2)
+
+    # Force at CTP (trough)
+    if ctp is not None and 0 <= ctp < n:
+        out["ctp_force_N"] = round(float(force[ctp]), 1)
+
+    # Mean force during braking and propulsive phases
+    if ctp is not None and cs is not None and ctp > cs:
+        out["mean_braking_force_N"] = round(float(np.mean(force[cs:ctp])), 1)
+    if ctp is not None and to is not None and to > ctp:
+        out["mean_propulsive_force_N"] = round(float(np.mean(force[ctp:to])), 1)
+
+    # Total impulse (braking + propulsive) over contact
+    if out["braking_impulse_Ns"] is not None and out["propulsive_impulse_Ns"] is not None:
+        out["total_impulse_Ns"] = round(out["braking_impulse_Ns"] + out["propulsive_impulse_Ns"], 4)
 
     # Braking and propulsive phase durations (ms)
     if ctp is not None and cs is not None and ctp > cs and sample_rate > 0:
@@ -1140,6 +1175,21 @@ def compute_dj_metrics(
         seg_rfd = dF[ctp : to]
         if len(seg_rfd) > 0:
             out["max_rfd_propulsive_N_s"] = round(float(np.max(seg_rfd)), 2)
+
+    # Average RFD during braking: (peak impact force − force at contact start) / time to peak impact
+    if (
+        p_impact is not None
+        and cs is not None
+        and p_impact > cs
+        and sample_rate > 0
+        and 0 <= cs < n
+        and 0 <= p_impact < n
+    ):
+        t_peak_s = (p_impact - cs) / sample_rate
+        if t_peak_s > 0:
+            f_start = float(force[cs])
+            f_peak = float(force[p_impact])
+            out["average_rfd_braking_N_s"] = round((f_peak - f_start) / t_peak_s, 2)
 
     # Classification: three-peak structure + rolling window (clamped = high reactive)
     p1 = points.peak_impact_force

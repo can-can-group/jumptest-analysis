@@ -29,7 +29,7 @@ Output is a **structured payload** (phases, key points, metrics) suitable for th
 
 - **Key points** (sample indices and times): `drop_landing`, `peak_impact_force`, `contact_through_point`, `start_of_concentric`, `peak_drive_off_force`, `take_off`, `flight_land`, `peak_landing_force`. Any can be `null` if not found.
 - **Phases**: Pre-jump, Contact, Flight, Landing (each with start/end time and duration).
-- **Metrics**: contact_time_ms, flight_time_s, jump_height_flight_m, rsi_dj, braking_impulse_Ns, propulsive_impulse_Ns, max_rfd_braking_N_s, max_rfd_propulsive_N_s, peak_impact_force_N, peak_drive_off_force_N, braking_duration_ms, propulsive_duration_ms, dj_classification.
+- **Metrics**: contact_time_ms, flight_time_s, jump_height_flight_m, rsi_dj, rsi_flight_contact_ratio, time_to_peak_impact_ms, peak_impact_force_N, peak_drive_off_force_N, peak_impact_force_pct_bw, peak_drive_off_force_pct_bw, mean_braking_force_N, mean_propulsive_force_N, total_impulse_Ns, ctp_force_N, average_rfd_braking_N_s, braking_impulse_Ns, propulsive_impulse_Ns, max_rfd_braking_N_s, max_rfd_propulsive_N_s, braking_duration_ms, propulsive_duration_ms, dj_classification.
 - **Analysis block** – same data with human-readable explanations for the UI.
 
 ---
@@ -113,12 +113,21 @@ Clamped detection uses **time in milliseconds** (not sample indices) so the 50 m
 | **flight_time_s** | (flight_land − take_off) / sample_rate when both set |
 | **jump_height_flight_m** | g × flight_time_s² / 8 (g = 9.81) |
 | **rsi_dj** | jump_height_flight_m / contact_time_s (Reactive Strength Index, m/s) |
+| **rsi_flight_contact_ratio** | flight_time_s / contact_time_s |
+| **time_to_peak_impact_ms** | (peak_impact_force − drop_landing) / sample_rate × 1000 |
+| **peak_impact_force_N** | force[peak_impact_force] at the peak impact index |
+| **peak_drive_off_force_N** | force[peak_drive_off_force] at the peak drive-off index |
+| **peak_impact_force_pct_bw** | peak_impact_force_N / bodyweight × 100 |
+| **peak_drive_off_force_pct_bw** | peak_drive_off_force_N / bodyweight × 100 |
+| **mean_braking_force_N** | mean(force) over [drop_landing, CTP] (requires CTP) |
+| **mean_propulsive_force_N** | mean(force) over [CTP, take_off] (requires CTP) |
+| **total_impulse_Ns** | braking_impulse_Ns + propulsive_impulse_Ns (requires both) |
+| **ctp_force_N** | force at contact through point (trough) |
+| **average_rfd_braking_N_s** | (peak_impact_force_N − force[drop_landing]) / time_to_peak_impact_s |
 | **braking_impulse_Ns** | ∫(F − BW) from drop_landing to CTP (requires CTP) |
 | **propulsive_impulse_Ns** | ∫(F − BW) from CTP to take_off (requires CTP) |
 | **max_rfd_braking_N_s** | max(dF/dt) over [drop_landing, CTP] (requires CTP) |
 | **max_rfd_propulsive_N_s** | max(dF/dt) over [CTP, take_off] (requires CTP) |
-| **peak_impact_force_N** | force[peak_impact_force] at the peak impact index |
-| **peak_drive_off_force_N** | force[peak_drive_off_force] at the peak drive-off index |
 | **braking_duration_ms** | (CTP − drop_landing) / sample_rate × 1000 (requires CTP) |
 | **propulsive_duration_ms** | (take_off − CTP) / sample_rate × 1000 (requires CTP) |
 | **dj_classification** | From order + clamped check (see above) |
