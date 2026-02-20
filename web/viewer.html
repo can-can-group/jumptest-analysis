@@ -1266,6 +1266,8 @@
           document.querySelector('h1').textContent = 'Drop Jump — Phase & Key Point Viewer';
         } else if (testType === 'CMJ') {
           document.querySelector('h1').textContent = 'CMJ Force Plate — Phase & Key Point Viewer';
+        } else if (testType === 'SJ') {
+          document.querySelector('h1').textContent = 'Squat Jump — Phase & Key Point Viewer';
         }
         var aid = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         if (aid) document.getElementById('compareToolbar').style.display = 'flex';

@@ -240,6 +240,7 @@ def build_dj_visualization_payload(
         else:
             metrics_ser[k] = v
 
+    events = {**points.to_dict(), "landing": points.flight_land}
     payload = {
         "athlete_id": trial.athlete_id,
         "test_type": "DJ",
@@ -252,9 +253,10 @@ def build_dj_visualization_payload(
         "right_force_N": _to_list(trial.right_force),
         "phases": dj_phases,
         "key_points": key_points,
-        "events": points.to_dict(),
+        "events": events,
         "metrics": metrics_ser,
     }
+    payload["classification"] = metrics.get("dj_classification")
     payload["analysis"] = build_analysis_response(payload)
     return payload
 
@@ -362,6 +364,8 @@ def build_sj_visualization_payload(
             "takeoff_index": points.takeoff_index,
             "landing_index": points.landing_index,
             "peak_landing_index": points.peak_landing_index,
+            "take_off": points.takeoff_index,
+            "landing": points.landing_index,
             **({"first_peak_index": points.first_peak_index} if getattr(points, "first_peak_index", None) is not None else {}),
             **({"trough_between_peaks_index": points.trough_between_peaks_index} if getattr(points, "trough_between_peaks_index", None) is not None else {}),
             **({"second_peak_index": points.second_peak_index} if getattr(points, "second_peak_index", None) is not None else {}),
