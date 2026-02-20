@@ -5,33 +5,38 @@
     "sample_rate": 1007.6305220883534,
     "bodyweight_N": 7217.9,
     "points_index": {
-      "contraction_start": 1877,
+      "contraction_start": 1864,
       "peak_force_index": 2223,
       "takeoff_index": 2316,
       "landing_index": 2798,
       "peak_landing_index": 2875
     },
     "points_time_s": {
-      "contraction_start": 1.8628,
+      "contraction_start": 1.8499,
       "peak_force_index": 2.2062,
       "takeoff_index": 2.2985,
       "landing_index": 2.7768,
       "peak_landing_index": 2.8532
     },
     "metrics": {
-      "contraction_time_s": 0.4357,
+      "contraction_time_s": 0.4486,
       "flight_time_s": 0.4783,
       "jump_height_m": 0.2806,
+      "jump_height_impulse_m": 0.2632,
+      "takeoff_velocity_m_s": 2.2722,
       "peak_force_N": 15006.0,
+      "peak_force_pct_bw": 207.8999,
+      "mean_force_N": 10929.0949,
+      "mean_force_pct_bw": 151.4166,
       "max_rfd_N_s": 57677.7066,
-      "time_to_max_rfd_s": 0.0754,
-      "impulse_Ns": 1669.7308,
-      "mean_force_N": 11034.3,
-      "time_to_peak_s": 0.3434,
+      "time_to_max_rfd_s": 0.0883,
+      "impulse_Ns": 1671.8495,
+      "time_to_peak_s": 0.3563,
+      "rsi_mod": 0.6255,
       "bimodality_index": null,
       "trough_depth_N": null,
       "peak_force_asymmetry_pct": 6.2665,
-      "impulse_asymmetry_pct": 1.1927,
+      "impulse_asymmetry_pct": 1.1166,
       "rfd_asymmetry_pct": 1.7338
     },
     "flags": {
@@ -51,33 +56,38 @@
     "sample_rate": 1007.0422535211268,
     "bodyweight_N": 7261.47,
     "points_index": {
-      "contraction_start": 1765,
+      "contraction_start": 1744,
       "peak_force_index": 1999,
       "takeoff_index": 2106,
       "landing_index": 2508,
       "peak_landing_index": 2578
     },
     "points_time_s": {
-      "contraction_start": 1.7527,
+      "contraction_start": 1.7318,
       "peak_force_index": 1.985,
       "takeoff_index": 2.0913,
       "landing_index": 2.4905,
       "peak_landing_index": 2.56
     },
     "metrics": {
-      "contraction_time_s": 0.3386,
+      "contraction_time_s": 0.3595,
       "flight_time_s": 0.3992,
       "jump_height_m": 0.1954,
+      "jump_height_impulse_m": 0.1718,
+      "takeoff_velocity_m_s": 1.8359,
       "peak_force_N": 16160.0,
+      "peak_force_pct_bw": 222.5444,
+      "mean_force_N": 11022.1515,
+      "mean_force_pct_bw": 151.7895,
       "max_rfd_N_s": 94626.7468,
-      "time_to_max_rfd_s": 0.1549,
-      "impulse_Ns": 1356.3815,
-      "mean_force_N": 11245.617,
-      "time_to_peak_s": 0.2324,
+      "time_to_max_rfd_s": 0.1758,
+      "impulse_Ns": 1358.9633,
+      "time_to_peak_s": 0.2532,
+      "rsi_mod": 0.5436,
       "bimodality_index": null,
       "trough_depth_N": null,
       "peak_force_asymmetry_pct": 7.2395,
-      "impulse_asymmetry_pct": 1.1579,
+      "impulse_asymmetry_pct": 0.891,
       "rfd_asymmetry_pct": 2.4967
     },
     "flags": {
@@ -97,33 +107,38 @@
     "sample_rate": 999.6,
     "bodyweight_N": 7196.17,
     "points_index": {
-      "contraction_start": 1698,
+      "contraction_start": 1693,
       "peak_force_index": 1984,
       "takeoff_index": 2091,
       "landing_index": 2530,
       "peak_landing_index": 2603
     },
     "points_time_s": {
-      "contraction_start": 1.6987,
+      "contraction_start": 1.6937,
       "peak_force_index": 1.9848,
       "takeoff_index": 2.0918,
       "landing_index": 2.531,
       "peak_landing_index": 2.604
     },
     "metrics": {
-      "contraction_time_s": 0.3932,
+      "contraction_time_s": 0.3982,
       "flight_time_s": 0.4392,
       "jump_height_m": 0.2365,
+      "jump_height_impulse_m": 0.2785,
+      "takeoff_velocity_m_s": 2.3375,
       "peak_force_N": 14117.0,
+      "peak_force_pct_bw": 196.1739,
+      "mean_force_N": 11483.5439,
+      "mean_force_pct_bw": 159.5787,
       "max_rfd_N_s": 84800.1625,
-      "time_to_max_rfd_s": 0.041,
-      "impulse_Ns": 1713.6705,
-      "mean_force_N": 11535.5355,
-      "time_to_peak_s": 0.2861,
+      "time_to_max_rfd_s": 0.046,
+      "impulse_Ns": 1714.7186,
+      "time_to_peak_s": 0.2911,
+      "rsi_mod": 0.594,
       "bimodality_index": null,
       "trough_depth_N": null,
       "peak_force_asymmetry_pct": 5.5761,
-      "impulse_asymmetry_pct": 2.7149,
+      "impulse_asymmetry_pct": 2.6379,
       "rfd_asymmetry_pct": 17.2405
     },
     "flags": {
@@ -143,33 +158,38 @@
     "sample_rate": 996.6,
     "bodyweight_N": 7540.17,
     "points_index": {
-      "contraction_start": 1506,
+      "contraction_start": 1494,
       "peak_force_index": 1616,
       "takeoff_index": 1719,
       "landing_index": 2162,
       "peak_landing_index": 2219
     },
     "points_time_s": {
-      "contraction_start": 1.5111,
+      "contraction_start": 1.4991,
       "peak_force_index": 1.6215,
       "takeoff_index": 1.7249,
       "landing_index": 2.1694,
       "peak_landing_index": 2.2266
     },
     "metrics": {
-      "contraction_time_s": 0.2137,
+      "contraction_time_s": 0.2258,
       "flight_time_s": 0.4445,
       "jump_height_m": 0.2423,
+      "jump_height_impulse_m": 0.0641,
+      "takeoff_velocity_m_s": 1.1214,
       "peak_force_N": 14249.0,
+      "peak_force_pct_bw": 188.9744,
+      "mean_force_N": 11335.2301,
+      "mean_force_pct_bw": 150.3312,
       "max_rfd_N_s": 54489.4878,
-      "time_to_max_rfd_s": 0.0773,
-      "impulse_Ns": 805.9503,
-      "mean_force_N": 11287.8271,
-      "time_to_peak_s": 0.1104,
+      "time_to_max_rfd_s": 0.0893,
+      "impulse_Ns": 861.9436,
+      "time_to_peak_s": 0.1224,
+      "rsi_mod": 1.0732,
       "bimodality_index": null,
       "trough_depth_N": null,
       "peak_force_asymmetry_pct": 4.0878,
-      "impulse_asymmetry_pct": 2.3284,
+      "impulse_asymmetry_pct": 2.2345,
       "rfd_asymmetry_pct": 5.7611
     },
     "flags": {
@@ -189,47 +209,49 @@
     "sample_rate": 999.2,
     "bodyweight_N": 4932.7,
     "points_index": {
-      "contraction_start": null,
-      "peak_force_index": null,
-      "takeoff_index": null,
-      "landing_index": null,
-      "peak_landing_index": null
+      "contraction_start": 1498,
+      "peak_force_index": 1498,
+      "takeoff_index": 1587,
+      "landing_index": 2050,
+      "peak_landing_index": 2082
     },
     "points_time_s": {
-      "contraction_start": null,
-      "peak_force_index": null,
-      "takeoff_index": null,
-      "landing_index": null,
-      "peak_landing_index": null
+      "contraction_start": 1.4992,
+      "peak_force_index": 1.4992,
+      "takeoff_index": 1.5883,
+      "landing_index": 2.0516,
+      "peak_landing_index": 2.0837
     },
     "metrics": {
-      "contraction_time_s": null,
-      "flight_time_s": null,
-      "jump_height_m": null,
-      "peak_force_N": null,
+      "contraction_time_s": 0.0891,
+      "flight_time_s": 0.4634,
+      "jump_height_m": 0.2633,
+      "jump_height_impulse_m": 0.0,
+      "takeoff_velocity_m_s": 0.0103,
+      "peak_force_N": 8090.0,
+      "peak_force_pct_bw": 164.0076,
+      "mean_force_N": 4981.4778,
+      "mean_force_pct_bw": 100.9889,
       "max_rfd_N_s": null,
       "time_to_max_rfd_s": null,
-      "impulse_Ns": null,
-      "mean_force_N": null,
-      "time_to_peak_s": null,
+      "impulse_Ns": 5.1629,
+      "time_to_peak_s": 0.0,
+      "rsi_mod": 2.956,
       "bimodality_index": null,
       "trough_depth_N": null,
-      "peak_force_asymmetry_pct": null,
-      "impulse_asymmetry_pct": null,
+      "peak_force_asymmetry_pct": 100.0,
+      "impulse_asymmetry_pct": 100.0,
       "rfd_asymmetry_pct": null
     },
     "flags": {
-      "countermovement": false,
+      "countermovement": true,
       "bimodal": false,
-      "asymmetry_flag": false
+      "asymmetry_flag": true
     },
     "classification": "injured_or_fatigued_squat_jump",
     "validity": {
-      "is_valid": false,
-      "flags": [
-        "no_takeoff",
-        "no_contraction_start"
-      ]
+      "is_valid": true,
+      "flags": []
     }
   }
 ]

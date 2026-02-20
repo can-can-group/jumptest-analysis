@@ -20040,19 +20040,19 @@
       "name": "Quiet",
       "description": "Standing still; force represents body weight",
       "start_index": 0,
-      "end_index": 1764,
+      "end_index": 1743,
       "start_time_s": 0.0,
-      "end_time_s": 1.7526573426573426,
-      "duration_s": 1.7526573426573426
+      "end_time_s": 1.7318041958041959,
+      "duration_s": 1.7318041958041959
     },
     {
       "name": "Concentric",
       "description": "Concentric phase from contraction start to take-off",
-      "start_index": 1765,
+      "start_index": 1744,
       "end_index": 2106,
-      "start_time_s": 1.7526573426573426,
+      "start_time_s": 1.7318041958041959,
       "end_time_s": 2.0912727272727274,
-      "duration_s": 0.33861538461538476
+      "duration_s": 0.3594685314685315
     },
     {
       "name": "Flight",
@@ -20076,9 +20076,9 @@
   "key_points": [
     {
       "name": "Contraction start",
-      "index": 1765,
-      "time_s": 1.7526573426573426,
-      "value_N": 7450.0
+      "index": 1744,
+      "time_s": 1.7318041958041959,
+      "value_N": 7348.0
     },
     {
       "name": "Peak force",
@@ -20106,26 +20106,31 @@
     }
   ],
   "events": {
-    "contraction_start": 1765,
+    "contraction_start": 1744,
     "peak_force_index": 1999,
     "takeoff_index": 2106,
     "landing_index": 2508,
     "peak_landing_index": 2578
   },
   "metrics": {
-    "contraction_time_s": 0.33861538461538465,
+    "contraction_time_s": 0.3594685314685315,
     "flight_time_s": 0.3991888111888112,
     "jump_height_m": 0.19540503068218498,
+    "jump_height_impulse_m": 0.17179278985520088,
+    "takeoff_velocity_m_s": 1.835912453511616,
     "peak_force_N": 16160.0,
+    "peak_force_pct_bw": 222.54435461692998,
+    "mean_force_N": 11022.151515151516,
+    "mean_force_pct_bw": 151.78945516271108,
     "max_rfd_N_s": 94626.74675052507,
-    "time_to_max_rfd_s": 0.1549090909090909,
-    "impulse_Ns": 1356.3814527341597,
-    "mean_force_N": 11245.616959064328,
-    "time_to_peak_s": 0.23236363636363638,
+    "time_to_max_rfd_s": 0.1757622377622378,
+    "impulse_Ns": 1358.9633208013556,
+    "time_to_peak_s": 0.25321678321678326,
+    "rsi_mod": 0.543594260904841,
     "bimodality_index": null,
     "trough_depth_N": null,
     "peak_force_asymmetry_pct": 7.239459029435163,
-    "impulse_asymmetry_pct": 1.1579356684476427,
+    "impulse_asymmetry_pct": 0.8909515616857621,
     "rfd_asymmetry_pct": 2.4966881347739123,
     "sj_classification": "optimal_squat_jump"
   },
@@ -20143,10 +20148,10 @@
           "name": "Quiet",
           "description": "Standing still; force represents body weight",
           "start_index": 0,
-          "end_index": 1764,
+          "end_index": 1743,
           "start_time_s": 0.0,
-          "end_time_s": 1.7526573426573426,
-          "duration_s": 1.7526573426573426
+          "end_time_s": 1.7318041958041959,
+          "duration_s": 1.7318041958041959
         },
         "explanation": "Standing still; force reflects body weight."
       },
@@ -20154,11 +20159,11 @@
         "value": {
           "name": "Concentric",
           "description": "Concentric phase from contraction start to take-off",
-          "start_index": 1765,
+          "start_index": 1744,
           "end_index": 2106,
-          "start_time_s": 1.7526573426573426,
+          "start_time_s": 1.7318041958041959,
           "end_time_s": 2.0912727272727274,
-          "duration_s": 0.33861538461538476
+          "duration_s": 0.3594685314685315
         },
         "explanation": "Push upwards; force rises through P1 and P2 peaks."
       },
@@ -20191,9 +20196,9 @@
       "contraction_start": {
         "value": {
           "name": "Contraction start",
-          "index": 1765,
-          "time_s": 1.7526573426573426,
-          "value_N": 7450.0
+          "index": 1744,
+          "time_s": 1.7318041958041959,
+          "value_N": 7348.0
         },
         "explanation": ""
       },
@@ -20236,7 +20241,7 @@
     },
     "metrics": {
       "contraction_time_s": {
-        "value": 0.33861538461538465,
+        "value": 0.3594685314685315,
         "explanation": "Duration from contraction start to take-off (s)."
       },
       "flight_time_s": {
@@ -20247,29 +20252,49 @@
         "value": 0.19540503068218498,
         "explanation": "Jump height from flight time formula: g \u00d7 T\u00b2/8 (m)."
       },
+      "jump_height_impulse_m": {
+        "value": 0.17179278985520088,
+        "explanation": "Jump height from impulse-momentum method: v\u00b2/(2g), v = impulse/mass (m)."
+      },
+      "takeoff_velocity_m_s": {
+        "value": 1.835912453511616,
+        "explanation": "Vertical take-off velocity from impulse/mass (m/s)."
+      },
       "peak_force_N": {
         "value": 16160.0,
         "explanation": "Peak vertical force during concentric phase (N)."
+      },
+      "peak_force_pct_bw": {
+        "value": 222.54435461692998,
+        "explanation": "Peak concentric force as percentage of bodyweight (%)."
+      },
+      "mean_force_N": {
+        "value": 11022.151515151516,
+        "explanation": "Mean force during concentric phase (N)."
+      },
+      "mean_force_pct_bw": {
+        "value": 151.78945516271108,
+        "explanation": "Mean concentric force as percentage of bodyweight (%)."
       },
       "max_rfd_N_s": {
         "value": 94626.74675052507,
         "explanation": "Peak rate of force development during concentric phase (N/s)."
       },
       "time_to_max_rfd_s": {
-        "value": 0.1549090909090909,
+        "value": 0.1757622377622378,
         "explanation": "Time from contraction start to peak RFD (s)."
       },
       "impulse_Ns": {
-        "value": 1356.3814527341597,
+        "value": 1358.9633208013556,
         "explanation": "Impulse (integral of F \u2212 BW) from contraction start to take-off (N\u00b7s)."
       },
-      "mean_force_N": {
-        "value": 11245.616959064328,
-        "explanation": "Mean force during concentric phase (N)."
-      },
       "time_to_peak_s": {
-        "value": 0.23236363636363638,
+        "value": 0.25321678321678326,
         "explanation": "Time from contraction start to peak force (s)."
+      },
+      "rsi_mod": {
+        "value": 0.543594260904841,
+        "explanation": "Modified reactive strength index: jump height (flight) / contraction time (m/s)."
       },
       "bimodality_index": {
         "value": null,
@@ -20284,7 +20309,7 @@
         "explanation": "Left\u2013right asymmetry in peak force (%)."
       },
       "impulse_asymmetry_pct": {
-        "value": 1.1579356684476427,
+        "value": 0.8909515616857621,
         "explanation": "Left\u2013right asymmetry in concentric impulse (%)."
       },
       "rfd_asymmetry_pct": {

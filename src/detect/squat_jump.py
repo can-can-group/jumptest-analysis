@@ -541,16 +541,25 @@ def compute_sj_metrics(
     to_idx = points.takeoff_index
     land_idx = points.landing_index
 
+    G = 9.81
+    mass_kg = bodyweight / G
+
     out: Dict[str, Any] = {
         "contraction_time_s": None,
         "flight_time_s": None,
         "jump_height_m": None,
+        "jump_height_impulse_m": None,
+        "takeoff_velocity_m_s": None,
         "peak_force_N": None,
+        "peak_force_pct_bw": None,
+        "mean_force_N": None,
+        "mean_force_pct_bw": None,
         "max_rfd_N_s": None,
         "time_to_max_rfd_s": None,
         "impulse_Ns": None,
         "mean_force_N": None,
         "time_to_peak_s": None,
+        "rsi_mod": None,
         "bimodality_index": flags.get("bimodality_index"),
         "trough_depth_N": flags.get("trough_depth_N"),
         "peak_force_asymmetry_pct": None,
@@ -564,15 +573,30 @@ def compute_sj_metrics(
     # Contraction time
     out["contraction_time_s"] = float((to_idx - cs) * dt)
 
-    # Flight time and jump height (flight time method: h = g*T^2/8)
+    # Impulse (concentric): integral of (force - baseline) from contraction_start to takeoff
+    t_seg = np.arange(cs, to_idx + 1, dtype=float) * dt
+    if len(t_seg) > 1:
+        impulse = trapezoid(force[cs : to_idx + 1] - bodyweight, t_seg)
+        out["impulse_Ns"] = float(impulse)
+        # Takeoff velocity (impulse-momentum): v = impulse / mass
+        out["takeoff_velocity_m_s"] = float(impulse / mass_kg)
+        # Jump height from impulse method: h = v² / (2g)
+        out["jump_height_impulse_m"] = float((impulse / mass_kg) ** 2 / (2 * G))
+
+    # Flight time and jump height (flight time method: h = g*T²/8)
     if land_idx is not None:
         t_flight = (land_idx - to_idx) * dt
         out["flight_time_s"] = float(t_flight)
-        out["jump_height_m"] = float(9.81 * (t_flight ** 2) / 8.0)
+        out["jump_height_m"] = float(G * (t_flight ** 2) / 8.0)
+        # RSI-mod: jump height (m) / contraction time (s) — m/s
+        if out["contraction_time_s"] and out["contraction_time_s"] > 0:
+            out["rsi_mod"] = float(out["jump_height_m"] / out["contraction_time_s"])
 
-    # Peak force (concentric)
+    # Peak force (concentric) and relative (% BW)
     if pf_idx is not None and cs <= pf_idx <= to_idx:
-        out["peak_force_N"] = float(force[pf_idx])
+        pf_val = float(force[pf_idx])
+        out["peak_force_N"] = pf_val
+        out["peak_force_pct_bw"] = float(100.0 * pf_val / bodyweight) if bodyweight > 0 else None
 
     # RFD: derivative over window, max between contraction_start and peak_force
     rfd_window = _ms_to_samples(cfg.rfd_window_ms, sr)
@@ -589,13 +613,10 @@ def compute_sj_metrics(
             out["max_rfd_N_s"] = max_rfd_val
             out["time_to_max_rfd_s"] = float(max_rfd_rel * dt)
 
-    # Impulse (concentric): integral of (force - baseline) from contraction_start to takeoff
-    t_seg = np.arange(cs, to_idx + 1, dtype=float) * dt
-    if len(t_seg) > 1:
-        impulse = trapezoid(force[cs : to_idx + 1] - bodyweight, t_seg)
-        out["impulse_Ns"] = float(impulse)
     f_conc = force[cs : to_idx + 1]
-    out["mean_force_N"] = float(np.mean(f_conc))
+    mean_f = float(np.mean(f_conc))
+    out["mean_force_N"] = mean_f
+    out["mean_force_pct_bw"] = float(100.0 * mean_f / bodyweight) if bodyweight > 0 else None
 
     # Time to peak
     if pf_idx is not None:
@@ -747,9 +768,10 @@ def run_squat_jump_analysis(
 
     # Spec: metrics dict with all keys (value or None)
     metrics_out = {k: metrics.get(k) for k in [
-        "contraction_time_s", "flight_time_s", "jump_height_m", "peak_force_N",
-        "max_rfd_N_s", "time_to_max_rfd_s", "impulse_Ns", "mean_force_N",
-        "time_to_peak_s", "bimodality_index", "trough_depth_N", "peak_force_asymmetry_pct",
+        "contraction_time_s", "flight_time_s", "jump_height_m", "jump_height_impulse_m",
+        "takeoff_velocity_m_s", "peak_force_N", "peak_force_pct_bw", "mean_force_N", "mean_force_pct_bw",
+        "max_rfd_N_s", "time_to_max_rfd_s", "impulse_Ns", "time_to_peak_s", "rsi_mod",
+        "bimodality_index", "trough_depth_N", "peak_force_asymmetry_pct",
         "impulse_asymmetry_pct", "rfd_asymmetry_pct",
     ]}
     for k, v in metrics.items():

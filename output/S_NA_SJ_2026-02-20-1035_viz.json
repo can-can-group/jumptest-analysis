@@ -4,11 +4,8 @@
   "sample_rate": 999.2,
   "bodyweight_N": 4932.699689118491,
   "validity": {
-    "is_valid": false,
-    "flags": [
-      "no_takeoff",
-      "no_contraction_start"
-    ]
+    "is_valid": true,
+    "flags": []
   },
   "time_s": [
     0.0,
@@ -20002,58 +19999,246 @@
     0.0,
     0.0
   ],
-  "phases": [],
-  "key_points": [],
+  "phases": [
+    {
+      "name": "Quiet",
+      "description": "Standing still; force represents body weight",
+      "start_index": 0,
+      "end_index": 1497,
+      "start_time_s": 0.0,
+      "end_time_s": 1.49919935948759,
+      "duration_s": 1.49919935948759
+    },
+    {
+      "name": "Concentric",
+      "description": "Concentric phase from contraction start to take-off",
+      "start_index": 1498,
+      "end_index": 1587,
+      "start_time_s": 1.49919935948759,
+      "end_time_s": 1.5882706164931946,
+      "duration_s": 0.08907125700560448
+    },
+    {
+      "name": "Flight",
+      "description": "Airborne; force plate reads near zero",
+      "start_index": 1587,
+      "end_index": 2050,
+      "start_time_s": 1.5882706164931946,
+      "end_time_s": 2.0516413130504403,
+      "duration_s": 0.4633706965572457
+    },
+    {
+      "name": "Landing",
+      "description": "Impact and absorption after landing",
+      "start_index": 2050,
+      "end_index": 4995,
+      "start_time_s": 2.0516413130504403,
+      "end_time_s": 4.9989991993594876,
+      "duration_s": 2.9473578863090473
+    }
+  ],
+  "key_points": [
+    {
+      "name": "Contraction start",
+      "index": 1498,
+      "time_s": 1.49919935948759,
+      "value_N": 8090.0
+    },
+    {
+      "name": "Peak force",
+      "index": 1498,
+      "time_s": 1.49919935948759,
+      "value_N": 8090.0
+    },
+    {
+      "name": "Take-off",
+      "index": 1587,
+      "time_s": 1.5882706164931946,
+      "value_N": 238.0
+    },
+    {
+      "name": "Landing",
+      "index": 2050,
+      "time_s": 2.0516413130504403,
+      "value_N": 275.0
+    },
+    {
+      "name": "Peak landing force",
+      "index": 2082,
+      "time_s": 2.083666933546837,
+      "value_N": 12731.0
+    }
+  ],
   "events": {
-    "contraction_start": null,
-    "peak_force_index": null,
-    "takeoff_index": null,
-    "landing_index": null,
-    "peak_landing_index": null
+    "contraction_start": 1498,
+    "peak_force_index": 1498,
+    "takeoff_index": 1587,
+    "landing_index": 2050,
+    "peak_landing_index": 2082
   },
   "metrics": {
-    "contraction_time_s": null,
-    "flight_time_s": null,
-    "jump_height_m": null,
-    "peak_force_N": null,
+    "contraction_time_s": 0.08907125700560448,
+    "flight_time_s": 0.4633706965572458,
+    "jump_height_m": 0.2632910834772702,
+    "jump_height_impulse_m": 5.373410422137224e-06,
+    "takeoff_velocity_m_s": 0.010267731613279164,
+    "peak_force_N": 8090.0,
+    "peak_force_pct_bw": 164.0075518452197,
+    "mean_force_N": 4981.477777777778,
+    "mean_force_pct_bw": 100.98887205249676,
     "max_rfd_N_s": null,
     "time_to_max_rfd_s": null,
-    "impulse_Ns": null,
-    "mean_force_N": null,
-    "time_to_peak_s": null,
+    "impulse_Ns": 5.162857954818984,
+    "time_to_peak_s": 0.0,
+    "rsi_mod": 2.955960119218971,
     "bimodality_index": null,
     "trough_depth_N": null,
-    "peak_force_asymmetry_pct": null,
-    "impulse_asymmetry_pct": null,
+    "peak_force_asymmetry_pct": 100.0,
+    "impulse_asymmetry_pct": 100.00000000000001,
     "rfd_asymmetry_pct": null,
     "sj_classification": "injured_or_fatigued_squat_jump"
   },
   "sj_classification": "injured_or_fatigued_squat_jump",
   "sj_flags": {
-    "countermovement": false,
+    "countermovement": true,
     "bimodal": false,
-    "asymmetry_flag": false
+    "asymmetry_flag": true
   },
   "classification": "injured_or_fatigued_squat_jump",
   "analysis": {
-    "phases": {},
-    "key_points": {},
+    "phases": {
+      "quiet": {
+        "value": {
+          "name": "Quiet",
+          "description": "Standing still; force represents body weight",
+          "start_index": 0,
+          "end_index": 1497,
+          "start_time_s": 0.0,
+          "end_time_s": 1.49919935948759,
+          "duration_s": 1.49919935948759
+        },
+        "explanation": "Standing still; force reflects body weight."
+      },
+      "concentric": {
+        "value": {
+          "name": "Concentric",
+          "description": "Concentric phase from contraction start to take-off",
+          "start_index": 1498,
+          "end_index": 1587,
+          "start_time_s": 1.49919935948759,
+          "end_time_s": 1.5882706164931946,
+          "duration_s": 0.08907125700560448
+        },
+        "explanation": "Push upwards; force rises through P1 and P2 peaks."
+      },
+      "flight": {
+        "value": {
+          "name": "Flight",
+          "description": "Airborne; force plate reads near zero",
+          "start_index": 1587,
+          "end_index": 2050,
+          "start_time_s": 1.5882706164931946,
+          "end_time_s": 2.0516413130504403,
+          "duration_s": 0.4633706965572457
+        },
+        "explanation": "Airborne; force plate reads near zero."
+      },
+      "landing": {
+        "value": {
+          "name": "Landing",
+          "description": "Impact and absorption after landing",
+          "start_index": 2050,
+          "end_index": 4995,
+          "start_time_s": 2.0516413130504403,
+          "end_time_s": 4.9989991993594876,
+          "duration_s": 2.9473578863090473
+        },
+        "explanation": "Impact and absorption after touchdown."
+      }
+    },
+    "key_points": {
+      "contraction_start": {
+        "value": {
+          "name": "Contraction start",
+          "index": 1498,
+          "time_s": 1.49919935948759,
+          "value_N": 8090.0
+        },
+        "explanation": ""
+      },
+      "peak_force": {
+        "value": {
+          "name": "Peak force",
+          "index": 1498,
+          "time_s": 1.49919935948759,
+          "value_N": 8090.0
+        },
+        "explanation": ""
+      },
+      "take_off": {
+        "value": {
+          "name": "Take-off",
+          "index": 1587,
+          "time_s": 1.5882706164931946,
+          "value_N": 238.0
+        },
+        "explanation": "Last instant of contact before flight; force leaves baseline."
+      },
+      "landing": {
+        "value": {
+          "name": "Landing",
+          "index": 2050,
+          "time_s": 2.0516413130504403,
+          "value_N": 275.0
+        },
+        "explanation": "First instant of contact after flight; force near takeoff level."
+      },
+      "peak_landing_force": {
+        "value": {
+          "name": "Peak landing force",
+          "index": 2082,
+          "time_s": 2.083666933546837,
+          "value_N": 12731.0
+        },
+        "explanation": "Highest force within ~150 ms of landing contact."
+      }
+    },
     "metrics": {
       "contraction_time_s": {
-        "value": null,
+        "value": 0.08907125700560448,
         "explanation": "Duration from contraction start to take-off (s)."
       },
       "flight_time_s": {
-        "value": null,
+        "value": 0.4633706965572458,
         "explanation": "Time airborne from take-off to landing (s)."
       },
       "jump_height_m": {
-        "value": null,
+        "value": 0.2632910834772702,
         "explanation": "Jump height from flight time formula: g \u00d7 T\u00b2/8 (m)."
       },
+      "jump_height_impulse_m": {
+        "value": 5.373410422137224e-06,
+        "explanation": "Jump height from impulse-momentum method: v\u00b2/(2g), v = impulse/mass (m)."
+      },
+      "takeoff_velocity_m_s": {
+        "value": 0.010267731613279164,
+        "explanation": "Vertical take-off velocity from impulse/mass (m/s)."
+      },
       "peak_force_N": {
-        "value": null,
+        "value": 8090.0,
         "explanation": "Peak vertical force during concentric phase (N)."
+      },
+      "peak_force_pct_bw": {
+        "value": 164.0075518452197,
+        "explanation": "Peak concentric force as percentage of bodyweight (%)."
+      },
+      "mean_force_N": {
+        "value": 4981.477777777778,
+        "explanation": "Mean force during concentric phase (N)."
+      },
+      "mean_force_pct_bw": {
+        "value": 100.98887205249676,
+        "explanation": "Mean concentric force as percentage of bodyweight (%)."
       },
       "max_rfd_N_s": {
         "value": null,
@@ -20064,16 +20249,16 @@
         "explanation": "Time from contraction start to peak RFD (s)."
       },
       "impulse_Ns": {
-        "value": null,
+        "value": 5.162857954818984,
         "explanation": "Impulse (integral of F \u2212 BW) from contraction start to take-off (N\u00b7s)."
       },
-      "mean_force_N": {
-        "value": null,
-        "explanation": "Mean force during concentric phase (N)."
-      },
       "time_to_peak_s": {
-        "value": null,
+        "value": 0.0,
         "explanation": "Time from contraction start to peak force (s)."
+      },
+      "rsi_mod": {
+        "value": 2.955960119218971,
+        "explanation": "Modified reactive strength index: jump height (flight) / contraction time (m/s)."
       },
       "bimodality_index": {
         "value": null,
@@ -20084,11 +20269,11 @@
         "explanation": "Force drop from higher peak to trough between peaks (bimodal takeoff strategy) (N)."
       },
       "peak_force_asymmetry_pct": {
-        "value": null,
+        "value": 100.0,
         "explanation": "Left\u2013right asymmetry in peak force (%)."
       },
       "impulse_asymmetry_pct": {
-        "value": null,
+        "value": 100.00000000000001,
         "explanation": "Left\u2013right asymmetry in concentric impulse (%)."
       },
       "rfd_asymmetry_pct": {
