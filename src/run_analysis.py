@@ -1,4 +1,9 @@
-"""Run CMJ/DJ/SJ analysis from in-memory data (API entry point). No file I/O or plotting."""
+"""Run CMJ/DJ/SJ analysis from in-memory data (API entry point). No file I/O or plotting.
+
+This module is the single API entry point for all three test types (CMJ, SJ, DJ);
+the backend calls run_analysis(data) with test_type in the payload and receives
+the same visualization payload shape for the viewer.
+"""
 from typing import Any, Dict
 
 from .data import load_trial_from_dict

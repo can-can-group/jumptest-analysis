@@ -308,6 +308,81 @@
     .compare-modal-actions button.primary { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
     .toolbar .compare-btn { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 0.9rem; color: var(--text); }
     .toolbar .compare-btn:hover { border-color: var(--grey-mid); }
+    .compare-category-group { margin-bottom: 0.5rem; }
+    .compare-category-group:last-child { margin-bottom: 0; }
+    .compare-category-header {
+      list-style: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--grey-dark);
+      padding: 0.5rem 0 0.35rem 0;
+      margin: 0 0 0.35rem 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      font-family: inherit;
+    }
+    .compare-category-header:hover { color: var(--text); }
+    .compare-category-chevron {
+      font-size: 0.75rem;
+      color: var(--muted);
+      transition: transform 0.2s ease;
+    }
+    .compare-category-group.collapsed .compare-category-chevron { transform: rotate(-90deg); }
+    .compare-category-items {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+    }
+    .compare-category-group.collapsed .compare-category-items { display: none; }
+    .compare-modal-list .compare-category-items li {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+    }
+    .compare-modal-list .compare-category-items li:hover { background: var(--bg); }
+    .compare-modal-list .compare-category-items li .duration { color: var(--muted); font-size: 0.85em; }
+    .compare-modal-list .compare-category-items li .compare-item-main {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .compare-modal-list .compare-category-items li .compare-item-date { color: var(--grey-dark); font-weight: 500; }
+    .compare-modal-list .compare-category-items li .compare-item-height { color: var(--orange); font-weight: 500; }
+    .compare-modal-list .compare-category-items li .compare-item-actions { display: flex; gap: 0.35rem; align-items: center; }
+    .compare-modal-list .compare-category-items li .compare-preview-btn {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.8rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      cursor: pointer;
+      color: var(--muted);
+    }
+    .compare-modal-list .compare-category-items li .compare-preview-btn:hover { border-color: var(--grey-mid); color: var(--text); }
+    .compare-modal-list .compare-category-items li.compare-select-row { cursor: pointer; }
+    .compare-modal-list .compare-category-items li.preview-detail-row {
+      cursor: default;
+      background: var(--bg);
+      padding: 0.75rem 1rem;
+      font-size: 0.8rem;
+      border-left: 3px solid var(--orange);
+    }
+    .compare-modal-list .compare-category-items li.preview-detail-row:hover { background: var(--bg); }
     @media print {
       .no-print { display: none !important; }
       .container { max-width: none; }
@@ -357,7 +432,7 @@
             <option value="height-asc">Jump height (low → high)</option>
           </select>
         </div>
-        <ul id="compareModalList" class="compare-modal-list"></ul>
+        <div id="compareModalList" class="compare-modal-list"></div>
         <div class="compare-modal-actions">
           <button type="button" id="compareModalClose">Cancel</button>
         </div>
@@ -393,7 +468,7 @@
             <option value="height-asc">Jump height (low → high)</option>
           </select>
         </div>
-        <ul id="viewAnotherModalList" class="compare-modal-list"></ul>
+        <div id="viewAnotherModalList" class="compare-modal-list"></div>
         <div class="compare-modal-actions">
           <button type="button" id="viewAnotherModalClose">Cancel</button>
         </div>
@@ -1250,6 +1325,14 @@
     let primaryData = null;
     let compareData = null;
 
+    function getTestTypeLabel(type) {
+      var t = (type || '').toUpperCase();
+      if (t === 'CMJ') return 'Counter Movement Jump';
+      if (t === 'DJ') return 'Drop Jump';
+      if (t === 'SJ') return 'Squat Jump';
+      return type || 'Test';
+    }
+
     function applyPrimaryView(data) {
       try {
         if (!data) return;
@@ -1449,6 +1532,26 @@
         order = order || (sortSelect ? sortSelect.value : 'date-desc');
         var sorted = sortTests(tests, order);
         listEl.innerHTML = '';
+        if (sorted.length === 0) return;
+        var typeLabel = getTestTypeLabel(tests[0] && tests[0].test_type);
+        var groupDiv = document.createElement('div');
+        groupDiv.className = 'compare-category-group';
+        var headerBtn = document.createElement('button');
+        headerBtn.type = 'button';
+        headerBtn.className = 'compare-category-header';
+        headerBtn.setAttribute('aria-expanded', 'true');
+        var chevron = document.createElement('span');
+        chevron.className = 'compare-category-chevron';
+        chevron.setAttribute('aria-hidden', 'true');
+        chevron.textContent = '\u25BC';
+        headerBtn.appendChild(document.createTextNode(typeLabel + ' (' + sorted.length + ') '));
+        headerBtn.appendChild(chevron);
+        headerBtn.addEventListener('click', function() {
+          groupDiv.classList.toggle('collapsed');
+          headerBtn.setAttribute('aria-expanded', groupDiv.classList.contains('collapsed') ? 'false' : 'true');
+        });
+        var itemsUl = document.createElement('ul');
+        itemsUl.className = 'compare-category-items';
         sorted.forEach(function(t) {
           var li = document.createElement('li');
           li.className = 'compare-select-row';
@@ -1464,8 +1567,11 @@
             '<div class="compare-item-actions">' +
             '<button type="button" class="compare-preview-btn" data-id="' + escapeAttr(t.id) + '">Preview</button>' +
             '</div>';
-          listEl.appendChild(li);
+          itemsUl.appendChild(li);
         });
+        groupDiv.appendChild(headerBtn);
+        groupDiv.appendChild(itemsUl);
+        listEl.appendChild(groupDiv);
       }
       function openPreviewRow(testId, base) {
         var existing = listEl.querySelector('.preview-detail-row[data-preview-id="' + escapeAttr(testId) + '"]');
@@ -1480,8 +1586,9 @@
         row.dataset.previewId = testId;
         row.innerHTML = '<div>Loading…</div>';
         var selectRow = listEl.querySelector('li.compare-select-row[data-id="' + escapeAttr(testId) + '"]');
-        if (selectRow && selectRow.nextSibling) listEl.insertBefore(row, selectRow.nextSibling);
-        else listEl.appendChild(row);
+        var parent = selectRow ? selectRow.parentNode : listEl;
+        if (selectRow && selectRow.nextSibling) parent.insertBefore(row, selectRow.nextSibling);
+        else parent.appendChild(row);
         fetch(base + '/' + encodeURIComponent(testId) + '/viz')
           .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function(viz) {
@@ -1509,7 +1616,7 @@
         var li = e.target && e.target.closest && e.target.closest('li.compare-select-row');
         if (!li || !li.dataset.id) return;
         var id = li.dataset.id;
-        listEl.innerHTML = '<li class="empty">Loading…</li>';
+        listEl.innerHTML = '<div class="empty">Loading…</div>';
         fetch(baseUrlFn() + '/' + encodeURIComponent(id) + '/viz')
           .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function(viz) {
@@ -1517,13 +1624,14 @@
             renderComparison(primaryData, compareData);
             hideModal();
           })
-          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load test.</li>'; });
+          .catch(function() { listEl.innerHTML = '<div class="empty">Failed to load test.</div>'; });
       });
       compareBtn.addEventListener('click', function() {
         var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         currentIdForCompare = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
         if (!athleteId) return;
-        listEl.innerHTML = '<li class="empty">Loading…</li>';
+        var currentType = (primaryData && (primaryData.test_type || '').toUpperCase()) || '';
+        listEl.innerHTML = '<div class="empty">Loading…</div>';
         if (sortBar) sortBar.style.display = 'none';
         showModal();
         var base = baseUrlFn();
@@ -1531,16 +1639,19 @@
           .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function(tests) {
             if (!Array.isArray(tests)) tests = [];
-            currentTests = tests.filter(function(t) { return t.id && t.id !== currentIdForCompare; });
+            currentTests = tests.filter(function(t) {
+              return t.id && t.id !== currentIdForCompare && (t.test_type || '').toUpperCase() === currentType;
+            });
             listEl.innerHTML = '';
             if (currentTests.length === 0) {
-              listEl.innerHTML = '<li class="empty">No other tests to compare.</li>';
+              var typeLabel = getTestTypeLabel(primaryData && primaryData.test_type);
+              listEl.innerHTML = '<div class="empty">No other ' + escapeHtml(typeLabel) + ' tests to compare.</div>';
               return;
             }
             if (sortBar) sortBar.style.display = 'flex';
             renderCompareList(currentTests, sortSelect ? sortSelect.value : 'date-desc');
           })
-          .catch(function() { listEl.innerHTML = '<li class="empty">Failed to load list.</li>'; });
+          .catch(function() { listEl.innerHTML = '<div class="empty">Failed to load list.</div>'; });
       });
     })();
 
@@ -1641,23 +1752,54 @@
       }
       function renderViewAnotherList(tests, order) {
         order = order || (viewAnotherSortSelect ? viewAnotherSortSelect.value : 'date-desc');
-        var sorted = sortTests(tests, order);
         var currentId = (typeof window !== 'undefined' && window.CURRENT_JUMP_TEST_ID) ? window.CURRENT_JUMP_TEST_ID : '';
+        var grouped = { CMJ: [], DJ: [], SJ: [] };
+        tests.forEach(function(t) {
+          var type = (t.test_type || '').toUpperCase();
+          if (grouped[type]) grouped[type].push(t);
+        });
+        var categoryOrder = ['CMJ', 'DJ', 'SJ'];
         viewAnotherList.innerHTML = '';
-        sorted.forEach(function(t) {
-          var li = document.createElement('li');
-          li.className = 'compare-select-row';
-          li.dataset.id = t.id;
-          var dateStr = formatListDate(t.created_at);
-          var heightStr = formatJumpHeight(t.jump_height_m);
-          var durStr = t.test_duration != null ? Number(t.test_duration).toFixed(2) + ' s' : '—';
-          var currentLabel = t.id === currentId ? ' <span style="color:var(--muted);font-size:0.8em;">(current)</span>' : '';
-          li.innerHTML = '<div class="compare-item-main">' +
-            '<span class="compare-item-date">' + escapeHtml(dateStr) + '</span>' +
-            '<span class="compare-item-height">' + escapeHtml(heightStr) + '</span>' +
-            '<span class="duration">' + escapeHtml(durStr) + '</span>' + currentLabel +
-            '</div>';
-          viewAnotherList.appendChild(li);
+        categoryOrder.forEach(function(typeKey) {
+          var group = grouped[typeKey] || [];
+          if (group.length === 0) return;
+          var sorted = sortTests(group, order);
+          var groupDiv = document.createElement('div');
+          groupDiv.className = 'compare-category-group';
+          var headerBtn = document.createElement('button');
+          headerBtn.type = 'button';
+          headerBtn.className = 'compare-category-header';
+          headerBtn.setAttribute('aria-expanded', 'true');
+          var chevron = document.createElement('span');
+          chevron.className = 'compare-category-chevron';
+          chevron.setAttribute('aria-hidden', 'true');
+          chevron.textContent = '\u25BC';
+          headerBtn.appendChild(document.createTextNode(getTestTypeLabel(typeKey) + ' (' + sorted.length + ') '));
+          headerBtn.appendChild(chevron);
+          headerBtn.addEventListener('click', function() {
+            groupDiv.classList.toggle('collapsed');
+            headerBtn.setAttribute('aria-expanded', groupDiv.classList.contains('collapsed') ? 'false' : 'true');
+          });
+          var itemsUl = document.createElement('ul');
+          itemsUl.className = 'compare-category-items';
+          sorted.forEach(function(t) {
+            var li = document.createElement('li');
+            li.className = 'compare-select-row';
+            li.dataset.id = t.id;
+            var dateStr = formatListDate(t.created_at);
+            var heightStr = formatJumpHeight(t.jump_height_m);
+            var durStr = t.test_duration != null ? Number(t.test_duration).toFixed(2) + ' s' : '—';
+            var currentLabel = t.id === currentId ? ' <span style="color:var(--muted);font-size:0.8em;">(current)</span>' : '';
+            li.innerHTML = '<div class="compare-item-main">' +
+              '<span class="compare-item-date">' + escapeHtml(dateStr) + '</span>' +
+              '<span class="compare-item-height">' + escapeHtml(heightStr) + '</span>' +
+              '<span class="duration">' + escapeHtml(durStr) + '</span>' + currentLabel +
+              '</div>';
+            itemsUl.appendChild(li);
+          });
+          groupDiv.appendChild(headerBtn);
+          groupDiv.appendChild(itemsUl);
+          viewAnotherList.appendChild(groupDiv);
         });
       }
       viewAnotherModalClose.addEventListener('click', function() {
@@ -1677,7 +1819,7 @@
         var li = e.target && e.target.closest && e.target.closest('li.compare-select-row');
         if (!li || !li.dataset.id) return;
         var id = li.dataset.id;
-        viewAnotherList.innerHTML = '<li class="empty">Loading…</li>';
+        viewAnotherList.innerHTML = '<div class="empty">Loading…</div>';
         fetch(baseUrl() + '/' + encodeURIComponent(id) + '/viz')
           .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
           .then(function(viz) {
@@ -1688,12 +1830,12 @@
             viewAnotherOverlay.classList.remove('visible');
             viewAnotherOverlay.setAttribute('aria-hidden', 'true');
           })
-          .catch(function() { viewAnotherList.innerHTML = '<li class="empty">Failed to load test.</li>'; });
+          .catch(function() { viewAnotherList.innerHTML = '<div class="empty">Failed to load test.</div>'; });
       });
       viewAnotherBtn.addEventListener('click', function() {
         var athleteId = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         if (!athleteId) return;
-        viewAnotherList.innerHTML = '<li class="empty">Loading…</li>';
+        viewAnotherList.innerHTML = '<div class="empty">Loading…</div>';
         if (viewAnotherSortBar) viewAnotherSortBar.style.display = 'none';
         viewAnotherOverlay.classList.add('visible');
         viewAnotherOverlay.setAttribute('aria-hidden', 'false');
@@ -1704,13 +1846,13 @@
             viewAnotherTests = tests;
             viewAnotherList.innerHTML = '';
             if (viewAnotherTests.length === 0) {
-              viewAnotherList.innerHTML = '<li class="empty">No tests found.</li>';
+              viewAnotherList.innerHTML = '<div class="empty">No tests found.</div>';
               return;
             }
             if (viewAnotherSortBar) viewAnotherSortBar.style.display = 'flex';
             renderViewAnotherList(viewAnotherTests, viewAnotherSortSelect ? viewAnotherSortSelect.value : 'date-desc');
           })
-          .catch(function() { viewAnotherList.innerHTML = '<li class="empty">Failed to load list.</li>'; });
+          .catch(function() { viewAnotherList.innerHTML = '<div class="empty">Failed to load list.</div>'; });
       });
     })();
   </script>
