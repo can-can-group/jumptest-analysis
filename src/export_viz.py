@@ -1,13 +1,14 @@
 """Export CMJ/DJ analysis to a single JSON for the JavaScript chart viewer."""
 import json
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 
 from .analysis_response import build_analysis_response
 from .data.types import CMJTrial, CMJEvents, TrialValidity
 from .detect.drop_jump import DropJumpPoints, DropJumpPhases
+from .detect.squat_jump import SquatJumpPoints, run_squat_jump_analysis
 
 
 def _to_list(arr: np.ndarray) -> List[float]:
@@ -254,6 +255,122 @@ def build_dj_visualization_payload(
         "events": points.to_dict(),
         "metrics": metrics_ser,
     }
+    payload["analysis"] = build_analysis_response(payload)
+    return payload
+
+
+def build_sj_visualization_payload(
+    trial: CMJTrial,
+    bodyweight: float,
+    points: SquatJumpPoints,
+    validity: TrialValidity,
+    metrics: Dict[str, Any],
+    flags: Dict[str, bool],
+    classification: str,
+) -> Dict[str, Any]:
+    """Build visualization payload for a Squat Jump trial.
+
+    Phases: Quiet, Contraction (concentric), Flight, Landing.
+    Key points: Contraction start, Peak force, Take-off, Landing, Peak landing force.
+    """
+    t = trial.t
+    n = trial.sample_count
+
+    def _phase(start_t: float, end_t: float, **kwargs: Any) -> Dict[str, Any]:
+        d = dict(kwargs)
+        d["duration_s"] = float(end_t - start_t)
+        return d
+
+    phases: List[Dict[str, Any]] = []
+    cs = points.contraction_start
+    to_idx = points.takeoff_index
+    land_idx = points.landing_index
+
+    if cs is not None and cs > 0:
+        st, et = 0.0, float(t[cs])
+        phases.append(_phase(st, et, name="Quiet",
+            description="Standing still; force represents body weight",
+            start_index=0, end_index=cs - 1, start_time_s=st, end_time_s=et))
+    if cs is not None and to_idx is not None:
+        st, et = float(t[cs]), float(t[to_idx])
+        phases.append(_phase(st, et, name="Concentric",
+            description="Concentric phase from contraction start to take-off",
+            start_index=cs, end_index=to_idx, start_time_s=st, end_time_s=et))
+    if to_idx is not None and land_idx is not None:
+        st, et = float(t[to_idx]), float(t[land_idx])
+        phases.append(_phase(st, et, name="Flight",
+            description="Airborne; force plate reads near zero",
+            start_index=to_idx, end_index=land_idx, start_time_s=st, end_time_s=et))
+    if land_idx is not None:
+        st, et = float(t[land_idx]), float(t[-1])
+        phases.append(_phase(st, et, name="Landing",
+            description="Impact and absorption after landing",
+            start_index=land_idx, end_index=n - 1, start_time_s=st, end_time_s=et))
+
+    key_points: List[Dict[str, Any]] = []
+    _sj_kp_defs: List[Tuple[str, Optional[int]]] = [
+        ("Contraction start", points.contraction_start),
+        ("Peak force", points.peak_force_index),
+        ("Take-off", points.takeoff_index),
+        ("Landing", points.landing_index),
+        ("Peak landing force", points.peak_landing_index),
+    ]
+    if getattr(points, "first_peak_index", None) is not None:
+        _sj_kp_defs.append(("First peak (bimodal)", points.first_peak_index))
+    if getattr(points, "trough_between_peaks_index", None) is not None:
+        _sj_kp_defs.append(("Trough between peaks (bimodal)", points.trough_between_peaks_index))
+    if getattr(points, "second_peak_index", None) is not None:
+        _sj_kp_defs.append(("Second peak (bimodal)", points.second_peak_index))
+    for kp_name, kp_idx in _sj_kp_defs:
+        if kp_idx is not None and 0 <= kp_idx < n:
+            key_points.append({
+                "name": kp_name,
+                "index": kp_idx,
+                "time_s": float(t[kp_idx]),
+                "value_N": float(trial.force[kp_idx]),
+            })
+
+    metrics_ser: Dict[str, Any] = {}
+    for k, v in metrics.items():
+        if v is None:
+            metrics_ser[k] = None
+        elif isinstance(v, (int, float, str, bool)):
+            metrics_ser[k] = v
+        elif isinstance(v, np.floating):
+            metrics_ser[k] = float(v)
+        elif isinstance(v, np.integer):
+            metrics_ser[k] = int(v)
+        else:
+            metrics_ser[k] = v
+    metrics_ser["sj_classification"] = classification
+
+    payload = {
+        "athlete_id": trial.athlete_id,
+        "test_type": "SJ",
+        "sample_rate": trial.sample_rate,
+        "bodyweight_N": bodyweight,
+        "validity": {"is_valid": validity.is_valid, "flags": validity.flags},
+        "time_s": _to_list(trial.t),
+        "force_N": _to_list(trial.force),
+        "left_force_N": _to_list(trial.left_force),
+        "right_force_N": _to_list(trial.right_force),
+        "phases": phases,
+        "key_points": key_points,
+        "events": {
+            "contraction_start": points.contraction_start,
+            "peak_force_index": points.peak_force_index,
+            "takeoff_index": points.takeoff_index,
+            "landing_index": points.landing_index,
+            "peak_landing_index": points.peak_landing_index,
+            **({"first_peak_index": points.first_peak_index} if getattr(points, "first_peak_index", None) is not None else {}),
+            **({"trough_between_peaks_index": points.trough_between_peaks_index} if getattr(points, "trough_between_peaks_index", None) is not None else {}),
+            **({"second_peak_index": points.second_peak_index} if getattr(points, "second_peak_index", None) is not None else {}),
+        },
+        "metrics": metrics_ser,
+        "sj_classification": classification,
+        "sj_flags": flags,
+    }
+    payload["classification"] = classification
     payload["analysis"] = build_analysis_response(payload)
     return payload
 

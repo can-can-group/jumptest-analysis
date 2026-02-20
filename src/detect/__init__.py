@@ -9,6 +9,15 @@ from .drop_jump import (
     DropJumpPhases,
 )
 from .events import detect_events
+from .squat_jump import (
+    SquatJumpPoints,
+    SquatJumpConfig,
+    detect_squat_jump_events,
+    compute_sj_metrics,
+    classify_squat_jump,
+    validate_squat_jump_trial,
+    run_squat_jump_analysis,
+)
 from .phases import compute_phases
 from .structural_peaks import (
     detect_peaks_line_no_cut,
@@ -33,4 +42,11 @@ __all__ = [
     "detect_structural_peaks",
     "compute_phases",
     "validate_trial",
+    "SquatJumpPoints",
+    "SquatJumpConfig",
+    "detect_squat_jump_events",
+    "compute_sj_metrics",
+    "classify_squat_jump",
+    "validate_squat_jump_trial",
+    "run_squat_jump_analysis",
 ]

@@ -44,6 +44,24 @@ DJ_KEY_POINT_ORDER: List[str] = [
 ]
 
 # ---------------------------------------------------------------------------
+# SJ display order
+# ---------------------------------------------------------------------------
+SJ_PHASE_ORDER: List[str] = [
+    "quiet",
+    "concentric",
+    "flight",
+    "landing",
+]
+
+SJ_KEY_POINT_ORDER: List[str] = [
+    "contraction_start",
+    "peak_force",
+    "take_off",
+    "landing",
+    "peak_landing_force",
+]
+
+# ---------------------------------------------------------------------------
 # Phase name (from payload) -> slug   (CMJ + DJ)
 # ---------------------------------------------------------------------------
 _PHASE_NAME_TO_SLUG: Dict[str, str] = {
@@ -57,6 +75,7 @@ _PHASE_NAME_TO_SLUG: Dict[str, str] = {
     # DJ
     "Pre-jump": "pre_jump",
     "Contact": "contact",
+    # SJ (Concentric phase name reused)
 }
 
 PHASE_EXPLANATIONS: Dict[str, str] = {
@@ -91,6 +110,10 @@ _KEY_POINT_NAME_TO_SLUG: Dict[str, str] = {
     "Peak Drive-Off Force": "peak_drive_off_force",
     "Flight Land": "flight_land",
     "Peak Landing Force": "peak_landing_force",
+    # SJ
+    "Contraction start": "contraction_start",
+    "Peak force": "peak_force",
+    "Peak landing force": "peak_landing_force",
 }
 
 KEY_POINT_EXPLANATIONS: Dict[str, str] = {
@@ -172,6 +195,22 @@ METRIC_EXPLANATIONS: Dict[str, str] = {
     "braking_duration_ms": "Duration from drop landing to CTP (ms).",
     "propulsive_duration_ms": "Duration from CTP to take-off (ms).",
     "dj_classification": "DJ type classification: high_reactive (fast SSC) or low_reactive (slow SSC).",
+    # SJ
+    "contraction_time_s": "Duration from contraction start to take-off (s).",
+    "flight_time_s": "Time airborne from take-off to landing (s).",
+    "jump_height_m": "Jump height from flight time formula: g × T²/8 (m).",
+    "peak_force_N": "Peak vertical force during concentric phase (N).",
+    "max_rfd_N_s": "Peak rate of force development during concentric phase (N/s).",
+    "time_to_max_rfd_s": "Time from contraction start to peak RFD (s).",
+    "impulse_Ns": "Impulse (integral of F − BW) from contraction start to take-off (N·s).",
+    "mean_force_N": "Mean force during concentric phase (N).",
+    "time_to_peak_s": "Time from contraction start to peak force (s).",
+    "bimodality_index": "Absolute difference between two peaks if bimodal force curve (N).",
+    "trough_depth_N": "Force drop from higher peak to trough between peaks (bimodal takeoff strategy) (N).",
+    "peak_force_asymmetry_pct": "Left–right asymmetry in peak force (%).",
+    "impulse_asymmetry_pct": "Left–right asymmetry in concentric impulse (%).",
+    "rfd_asymmetry_pct": "Left–right asymmetry in peak RFD (%).",
+    "sj_classification": "Squat jump classification: optimal_squat_jump or injured_or_fatigued_squat_jump.",
 }
 
 
@@ -180,11 +219,20 @@ def build_analysis_response(payload: Dict[str, Any]) -> Dict[str, Any]:
 
     Uses the existing visualization payload (phases, key_points, metrics). Adds phase_order and
     key_point_order for deterministic display order. Unknown keys get an empty explanation.
-    Selects DJ-specific ordering when test_type is 'DJ'.
+    Selects DJ- or SJ-specific ordering when test_type is 'DJ' or 'SJ'.
     """
-    is_dj = (payload.get("test_type") or "").strip().upper() == "DJ"
-    phase_order = DJ_PHASE_ORDER if is_dj else PHASE_ORDER
-    key_point_order = DJ_KEY_POINT_ORDER if is_dj else KEY_POINT_ORDER
+    test_type = (payload.get("test_type") or "").strip().upper()
+    is_dj = test_type == "DJ"
+    is_sj = test_type == "SJ"
+    if is_sj:
+        phase_order = SJ_PHASE_ORDER
+        key_point_order = SJ_KEY_POINT_ORDER
+    elif is_dj:
+        phase_order = DJ_PHASE_ORDER
+        key_point_order = DJ_KEY_POINT_ORDER
+    else:
+        phase_order = PHASE_ORDER
+        key_point_order = KEY_POINT_ORDER
 
     analysis: Dict[str, Any] = {
         "phases": {},

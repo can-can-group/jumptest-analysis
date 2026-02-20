@@ -1,0 +1,235 @@
+[
+  {
+    "file": "S_NA_SJ_2026-02-20-1028.json",
+    "stem": "S_NA_SJ_2026-02-20-1028",
+    "sample_rate": 1007.6305220883534,
+    "bodyweight_N": 7217.9,
+    "points_index": {
+      "contraction_start": 1877,
+      "peak_force_index": 2223,
+      "takeoff_index": 2316,
+      "landing_index": 2798,
+      "peak_landing_index": 2875
+    },
+    "points_time_s": {
+      "contraction_start": 1.8628,
+      "peak_force_index": 2.2062,
+      "takeoff_index": 2.2985,
+      "landing_index": 2.7768,
+      "peak_landing_index": 2.8532
+    },
+    "metrics": {
+      "contraction_time_s": 0.4357,
+      "flight_time_s": 0.4783,
+      "jump_height_m": 0.2806,
+      "peak_force_N": 15006.0,
+      "max_rfd_N_s": 57677.7066,
+      "time_to_max_rfd_s": 0.0754,
+      "impulse_Ns": 1669.7308,
+      "mean_force_N": 11034.3,
+      "time_to_peak_s": 0.3434,
+      "bimodality_index": null,
+      "trough_depth_N": null,
+      "peak_force_asymmetry_pct": 6.2665,
+      "impulse_asymmetry_pct": 1.1927,
+      "rfd_asymmetry_pct": 1.7338
+    },
+    "flags": {
+      "countermovement": true,
+      "bimodal": false,
+      "asymmetry_flag": false
+    },
+    "classification": "injured_or_fatigued_squat_jump",
+    "validity": {
+      "is_valid": true,
+      "flags": []
+    }
+  },
+  {
+    "file": "S_NA_SJ_2026-02-20-1029.json",
+    "stem": "S_NA_SJ_2026-02-20-1029",
+    "sample_rate": 1007.0422535211268,
+    "bodyweight_N": 7261.47,
+    "points_index": {
+      "contraction_start": 1765,
+      "peak_force_index": 1999,
+      "takeoff_index": 2106,
+      "landing_index": 2508,
+      "peak_landing_index": 2578
+    },
+    "points_time_s": {
+      "contraction_start": 1.7527,
+      "peak_force_index": 1.985,
+      "takeoff_index": 2.0913,
+      "landing_index": 2.4905,
+      "peak_landing_index": 2.56
+    },
+    "metrics": {
+      "contraction_time_s": 0.3386,
+      "flight_time_s": 0.3992,
+      "jump_height_m": 0.1954,
+      "peak_force_N": 16160.0,
+      "max_rfd_N_s": 94626.7468,
+      "time_to_max_rfd_s": 0.1549,
+      "impulse_Ns": 1356.3815,
+      "mean_force_N": 11245.617,
+      "time_to_peak_s": 0.2324,
+      "bimodality_index": null,
+      "trough_depth_N": null,
+      "peak_force_asymmetry_pct": 7.2395,
+      "impulse_asymmetry_pct": 1.1579,
+      "rfd_asymmetry_pct": 2.4967
+    },
+    "flags": {
+      "countermovement": false,
+      "bimodal": false,
+      "asymmetry_flag": false
+    },
+    "classification": "optimal_squat_jump",
+    "validity": {
+      "is_valid": true,
+      "flags": []
+    }
+  },
+  {
+    "file": "S_NA_SJ_2026-02-20-1033.json",
+    "stem": "S_NA_SJ_2026-02-20-1033",
+    "sample_rate": 999.6,
+    "bodyweight_N": 7196.17,
+    "points_index": {
+      "contraction_start": 1698,
+      "peak_force_index": 1984,
+      "takeoff_index": 2091,
+      "landing_index": 2530,
+      "peak_landing_index": 2603
+    },
+    "points_time_s": {
+      "contraction_start": 1.6987,
+      "peak_force_index": 1.9848,
+      "takeoff_index": 2.0918,
+      "landing_index": 2.531,
+      "peak_landing_index": 2.604
+    },
+    "metrics": {
+      "contraction_time_s": 0.3932,
+      "flight_time_s": 0.4392,
+      "jump_height_m": 0.2365,
+      "peak_force_N": 14117.0,
+      "max_rfd_N_s": 84800.1625,
+      "time_to_max_rfd_s": 0.041,
+      "impulse_Ns": 1713.6705,
+      "mean_force_N": 11535.5355,
+      "time_to_peak_s": 0.2861,
+      "bimodality_index": null,
+      "trough_depth_N": null,
+      "peak_force_asymmetry_pct": 5.5761,
+      "impulse_asymmetry_pct": 2.7149,
+      "rfd_asymmetry_pct": 17.2405
+    },
+    "flags": {
+      "countermovement": true,
+      "bimodal": false,
+      "asymmetry_flag": false
+    },
+    "classification": "injured_or_fatigued_squat_jump",
+    "validity": {
+      "is_valid": true,
+      "flags": []
+    }
+  },
+  {
+    "file": "S_NA_SJ_2026-02-20-1034.json",
+    "stem": "S_NA_SJ_2026-02-20-1034",
+    "sample_rate": 996.6,
+    "bodyweight_N": 7540.17,
+    "points_index": {
+      "contraction_start": 1506,
+      "peak_force_index": 1616,
+      "takeoff_index": 1719,
+      "landing_index": 2162,
+      "peak_landing_index": 2219
+    },
+    "points_time_s": {
+      "contraction_start": 1.5111,
+      "peak_force_index": 1.6215,
+      "takeoff_index": 1.7249,
+      "landing_index": 2.1694,
+      "peak_landing_index": 2.2266
+    },
+    "metrics": {
+      "contraction_time_s": 0.2137,
+      "flight_time_s": 0.4445,
+      "jump_height_m": 0.2423,
+      "peak_force_N": 14249.0,
+      "max_rfd_N_s": 54489.4878,
+      "time_to_max_rfd_s": 0.0773,
+      "impulse_Ns": 805.9503,
+      "mean_force_N": 11287.8271,
+      "time_to_peak_s": 0.1104,
+      "bimodality_index": null,
+      "trough_depth_N": null,
+      "peak_force_asymmetry_pct": 4.0878,
+      "impulse_asymmetry_pct": 2.3284,
+      "rfd_asymmetry_pct": 5.7611
+    },
+    "flags": {
+      "countermovement": true,
+      "bimodal": false,
+      "asymmetry_flag": false
+    },
+    "classification": "injured_or_fatigued_squat_jump",
+    "validity": {
+      "is_valid": true,
+      "flags": []
+    }
+  },
+  {
+    "file": "S_NA_SJ_2026-02-20-1035.json",
+    "stem": "S_NA_SJ_2026-02-20-1035",
+    "sample_rate": 999.2,
+    "bodyweight_N": 4932.7,
+    "points_index": {
+      "contraction_start": null,
+      "peak_force_index": null,
+      "takeoff_index": null,
+      "landing_index": null,
+      "peak_landing_index": null
+    },
+    "points_time_s": {
+      "contraction_start": null,
+      "peak_force_index": null,
+      "takeoff_index": null,
+      "landing_index": null,
+      "peak_landing_index": null
+    },
+    "metrics": {
+      "contraction_time_s": null,
+      "flight_time_s": null,
+      "jump_height_m": null,
+      "peak_force_N": null,
+      "max_rfd_N_s": null,
+      "time_to_max_rfd_s": null,
+      "impulse_Ns": null,
+      "mean_force_N": null,
+      "time_to_peak_s": null,
+      "bimodality_index": null,
+      "trough_depth_N": null,
+      "peak_force_asymmetry_pct": null,
+      "impulse_asymmetry_pct": null,
+      "rfd_asymmetry_pct": null
+    },
+    "flags": {
+      "countermovement": false,
+      "bimodal": false,
+      "asymmetry_flag": false
+    },
+    "classification": "injured_or_fatigued_squat_jump",
+    "validity": {
+      "is_valid": false,
+      "flags": [
+        "no_takeoff",
+        "no_contraction_start"
+      ]
+    }
+  }
+]
