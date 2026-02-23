@@ -1,0 +1,149 @@
+"""Send emails via SMTP: welcome (on user creation) and jump test result link."""
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from typing import Optional, Tuple
+
+from api.config import EMAIL_BASE_URL, SMTP_FROM, SMTP_HOST, SMTP_PASSWORD, SMTP_PORT, SMTP_USER
+
+
+def _base_url() -> str:
+    return (EMAIL_BASE_URL or "").strip().rstrip("/") or "http://localhost:8000"
+
+
+def _send_email(to_email: str, subject: str, text: str, html: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """Send an email. If html is provided, sends multipart (plain + html)."""
+    if not SMTP_HOST:
+        return False, "SMTP not configured"
+    if not to_email:
+        return False, "No recipient email"
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject
+    msg["From"] = SMTP_FROM or SMTP_USER or "noreply@jumptest"
+    msg["To"] = to_email
+    msg.attach(MIMEText(text, "plain"))
+    if html:
+        msg.attach(MIMEText(html, "html"))
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as server:
+            if SMTP_USER and SMTP_PASSWORD:
+                server.starttls()
+                server.login(SMTP_USER, SMTP_PASSWORD)
+            server.sendmail(msg["From"], [to_email], msg.as_string())
+        return True, None
+    except smtplib.SMTPAuthenticationError as e:
+        return False, "SMTP authentication failed. For Gmail use an App Password: " + str(e)
+    except smtplib.SMTPException as e:
+        return False, "SMTP error: " + str(e)
+    except OSError as e:
+        return False, "Connection failed (check SMTP_HOST and SMTP_PORT): " + str(e)
+    except Exception as e:
+        return False, str(e)
+
+
+def _html_escape(s: str) -> str:
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
+
+def _href_escape(url: str) -> str:
+    """Escape URL for safe use in href (e.g. & -> &amp;) so links work in all email clients."""
+    return (url or "").replace("&", "&amp;")
+
+
+def send_welcome_email(to_email: str, user_id: str, name: Optional[str] = None) -> Tuple[bool, Optional[str]]:
+    """
+    Send a welcome email when a user is created, with a link to their jump tests page.
+    Returns (True, None) on success, (False, error_message) otherwise.
+    """
+    if not SMTP_HOST:
+        return False, "SMTP not configured"
+    base = _base_url()
+    my_tests_url = base + "/my-tests?user_id=" + user_id
+    my_tests_href = _href_escape(my_tests_url)
+    display_name = _html_escape((name or "").strip()) or "there"
+    subject = "Thank you for your participation – Your Jump Test Dashboard"
+
+    text = f"""Thank you for your participation!
+
+You can view and follow your jump test results anytime using the link below:
+
+{my_tests_url}
+
+We hope this helps you track your progress."""
+
+    # Use table-based button and escaped href so links are clickable in Gmail, Outlook, etc.
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank you for your participation</title>
+</head>
+<body style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5; padding: 24px;">
+  <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
+    <div style="background: #4f46e5; padding: 32px 24px; text-align: center;">
+      <h1 style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 600;">Thank you for your participation</h1>
+    </div>
+    <div style="padding: 28px 24px;">
+      <p style="margin: 0 0 16px 0; color: #374151; font-size: 16px; line-height: 1.6;">Hi {display_name},</p>
+      <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px; line-height: 1.6;">Thank you for taking part. You can access your jump test results and follow your progress anytime using the link below.</p>
+      <p style="margin: 0 0 24px 0; text-align: center;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td style="border-radius: 8px; background-color: #4f46e5;">
+              <a href="{my_tests_href}" target="_blank" rel="noopener" style="display: inline-block; padding: 14px 28px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">View my jump tests</a>
+            </td>
+          </tr>
+        </table>
+      </p>
+      <p style="margin: 0; color: #6b7280; font-size: 14px; line-height: 1.5;">If the button does not work, use this link:</p>
+      <p style="margin: 8px 0 0 0; word-break: break-all;"><a href="{my_tests_href}" target="_blank" rel="noopener" style="color: #4f46e5; text-decoration: underline;">{_html_escape(my_tests_url)}</a></p>
+    </div>
+    <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">This link is unique to you. Keep it to access your results in the future.</p>
+    </div>
+  </div>
+</body>
+</html>"""
+
+    return _send_email(to_email, subject, text, html)
+
+
+def send_jump_test_link(
+    to_email: str,
+    test_id: str,
+    subject: Optional[str] = None,
+    body: Optional[str] = None,
+) -> Tuple[bool, Optional[str]]:
+    """
+    Send an email with a link to view the jump test.
+    Returns (True, None) on success, (False, error_message) on failure or if not configured.
+    """
+    if not SMTP_HOST:
+        return False, "SMTP not configured. Set SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD (and optionally SMTP_FROM, EMAIL_BASE_URL) in .env"
+    if not to_email:
+        return False, "No recipient email"
+    base = _base_url()
+    viewer_url = base + "/viewer?test_id=" + test_id
+    viewer_href = _href_escape(viewer_url)
+    subj = subject or "Your jump test result"
+    text = body or ("View your jump test result here:\n\n" + viewer_url + "\n")
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+<body style="margin:0; font-family: system-ui, sans-serif; background:#f4f4f5; padding:24px;">
+  <div style="max-width:480px; margin:0 auto; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:28px;">
+    <h2 style="margin:0 0 16px 0; color:#111;">Your jump test result</h2>
+    <p style="margin:0 0 24px 0; color:#374151; line-height:1.6;">View your result and metrics using the link below.</p>
+    <p style="margin:0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr><td style="border-radius:8px; background-color:#4f46e5;">
+          <a href="{viewer_href}" target="_blank" rel="noopener" style="display:inline-block; padding:12px 24px; color:#fff; text-decoration:none; font-weight:600;">View result</a>
+        </td></tr>
+      </table>
+    </p>
+    <p style="margin:16px 0 0 0; font-size:14px; color:#6b7280; word-break:break-all;"><a href="{viewer_href}" target="_blank" rel="noopener" style="color:#4f46e5; text-decoration:underline;">{_html_escape(viewer_url)}</a></p>
+  </div>
+</body>
+</html>"""
+    return _send_email(to_email, subj, text, html)

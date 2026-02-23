@@ -1,7 +1,238 @@
-test
 # CMJ Force Plate Analysis
 
 Analyze counter-movement jump (CMJ) force plate exports: detect events (movement onset, take-off, landing), phases, key points (P1/P2), and compute physics-based metrics (jump height, peak power, RFD, phase impulses). This codebase is designed to be used **as a service** from your API: you send raw force data (or a path to a JSON file), and get back a structured analysis payload suitable for your frontend or other consumers.
+
+---
+
+## Connecting your frontend to the API
+
+This section documents everything needed to integrate a web or mobile frontend with the Jump Test API (auth, users, jump tests, viewer links, and email).
+
+### Base URL and CORS
+
+- **Base URL:** Your API root, e.g. `http://localhost:8000` in development or `https://your-api.example.com` in production.
+- **CORS:** The API allows all origins (`allow_origins=["*"]`). For production you may want to restrict this in `api/main.py` (e.g. `allow_origins=["https://your-frontend.com"]`).
+- **OpenAPI (Swagger):** `GET {base}/docs` — interactive docs and “Try it out” for all endpoints.
+- **Health:** `GET {base}/health` → `{ "status": "ok" }`.
+
+### Authentication (admin only)
+
+Only **admin** users are authenticated. There is no end-user login; athletes view their tests via shareable links (`/my-tests?user_id=...`, `/viewer?test_id=...`).
+
+**1. Create an admin (one-time, e.g. from backend or script)**  
+- **Endpoint:** `POST /admin/register`  
+- **Header:** `X-Admin-Secret: <ADMIN_SECRET>` (from `.env`)  
+- **Body (JSON):** `{ "email": "admin@example.com", "password": "your-password" }`  
+- **Response:** `201` → `{ "email": "admin@example.com", "created": true }`  
+- **Errors:** `403` missing/wrong secret; `409` email already exists.
+
+**2. Log in (get JWT)**  
+- **Endpoint:** `POST /auth/login`  
+- **Body (JSON):** `{ "email": "admin@example.com", "password": "your-password" }`  
+- **Response:** `200` → `{ "access_token": "<JWT>", "token_type": "bearer" }`  
+- **Errors:** `401` invalid email or password.
+
+**3. Call protected endpoints**  
+- **Header:** `Authorization: Bearer <access_token>`  
+- Required for: all **User** endpoints (`POST/GET/PUT/DELETE /users`, `GET /users`).  
+- **Jump test** endpoints (`POST/GET /jump-tests`, `GET /jump-tests/{id}`, etc.) do **not** require auth.
+
+**Example (fetch):**
+
+```javascript
+// Login
+const loginRes = await fetch(`${API_BASE}/auth/login`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ email: "admin@example.com", password: "secret" }),
+});
+const { access_token } = await loginRes.json();
+
+// List users (protected)
+const usersRes = await fetch(`${API_BASE}/users?limit=10`, {
+  headers: { "Authorization": `Bearer ${access_token}` },
+});
+const users = await usersRes.json();
+```
+
+---
+
+### Users (admin only)
+
+All `/users` routes require `Authorization: Bearer <token>`.
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/users` | Create user (sends welcome email with “View my jump tests” link) |
+| `GET`  | `/users` | List users (paginated) |
+| `GET`  | `/users/{user_id}` | Get one user |
+| `PUT`  | `/users/{user_id}` | Update user |
+| `DELETE` | `/users/{user_id}` | Delete user |
+
+**Create user — request body:**
+
+```json
+{
+  "email": "athlete@example.com",
+  "name": "Jane",
+  "last_name": "Doe",
+  "phone_number": "+1234567890",
+  "student_number": "S12345",
+  "gender": "F"
+}
+```
+
+All fields except `email` are optional. Response: same shape as **User response** below. On success, a welcome email is sent (if SMTP is configured) with a link to `{EMAIL_BASE_URL}/my-tests?user_id=<id>`.
+
+**List users — query params:**
+
+- `limit` (default 20, max 100)  
+- `offset` (default 0)
+
+**User response (single or list item):**
+
+```json
+{
+  "id": "507f1f77bcf86cd799439011",
+  "email": "athlete@example.com",
+  "name": "Jane",
+  "last_name": "Doe",
+  "phone_number": "+1234567890",
+  "student_number": "S12345",
+  "gender": "F",
+  "created_at": "2026-02-20T12:00:00Z",
+  "updated_at": "2026-02-20T12:00:00Z"
+}
+```
+
+**Update user — request body:** same fields as create, all optional; only sent fields are updated.
+
+---
+
+### Jump tests (no auth required)
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/jump-tests` | Submit jump test; returns analysis + stored `id` |
+| `GET`  | `/jump-tests` | List tests (filter by user, athlete, type, date range) |
+| `GET`  | `/jump-tests/{id}` | Get one test (result + metadata; optional raw) |
+| `GET`  | `/jump-tests/{id}/viz` | Viz JSON for the web viewer |
+| `POST` | `/jump-tests/{id}/send-link` | Email result link (optional override email) |
+
+**Submit jump test — request body:**
+
+```json
+{
+  "test_type": "CMJ",
+  "test_duration": 2.5,
+  "total_force": [ 0, 100, 200, ... ],
+  "left_force": [ 0, 50, 100, ... ],
+  "right_force": [ 0, 50, 100, ... ],
+  "user_id": "507f1f77bcf86cd799439011",
+  "athlete_id": "optional-override"
+}
+```
+
+- **Required:** `test_type` (e.g. `"CMJ"`, `"DJ"`, `"SJ"`), `test_duration` (seconds), **either** `force` or `total_force`, `left_force`, `right_force`.  
+- **Optional:** `user_id` (links test to a user), `athlete_id` (defaults to `user_id` or `"unknown"`), `sample_count`, `name`, `started_at`.  
+- **Response:** `200` → `{ "id": "<test_id>", ...analysis payload }` (same structure as the `result` object below).  
+- **Errors:** `400` if validation or analysis fails (e.g. invalid force data).
+
+**List jump tests — query params:**
+
+- `user_id` — filter by user  
+- `athlete_id` — filter by athlete  
+- `test_type` — e.g. `CMJ`, `DJ`  
+- `from_date`, `to_date` — ISO datetime  
+- `limit` (default 20, max 100), `offset` (default 0)
+
+**List response:**
+
+```json
+{
+  "items": [
+    {
+      "id": "507f1f77bcf86cd799439012",
+      "athlete_id": "507f1f77bcf86cd799439011",
+      "test_type": "CMJ",
+      "created_at": "2026-02-20T12:00:00Z",
+      "metrics": { "jump_height_impulse_m": 0.32, "flight_time_s": 0.45, ... }
+    }
+  ],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+**Get one test —** `GET /jump-tests/{id}`  
+- Optional query: `include_raw=true` to include the raw request body.  
+- Response includes `id`, `user_id`, `athlete_id`, `test_type`, `result` (full analysis), `created_at`, and optionally `raw`.
+
+**Viz for viewer —** `GET /jump-tests/{id}/viz`  
+Returns only the `result` payload (time series, phases, key_points, metrics, analysis) used by the built-in viewer. Your frontend can use this to drive a custom chart or reuse the same JSON shape.
+
+**Send result link by email —** `POST /jump-tests/{id}/send-link`  
+- **Body (optional):** `{ "email": "override@example.com" }`. If omitted, the API uses the email of the user linked to the test (`user_id`).  
+- **Response:** `200` → `{ "sent": true }`.  
+- **Errors:** `400` no email available; `404` test not found; `503` SMTP not configured or send failed (see `.env.example` for SMTP).
+
+---
+
+### Viewer and “My tests” pages (shareable links)
+
+The API serves two HTML pages that your frontend can link to or embed:
+
+- **Viewer (single test):** `{base}/viewer?test_id=<id>`  
+  Loads the test from `GET /jump-tests/{id}/viz` and shows the force chart, phases, and key points. Use this URL in emails or your app (e.g. “View result”).
+
+- **My tests (user’s list):** `{base}/my-tests?user_id=<user_id>`  
+  Lists that user’s jump tests with “View” links to the viewer. This is the URL included in the welcome email.
+
+Both work without authentication. Ensure `EMAIL_BASE_URL` in `.env` matches your public API URL so email links point to the correct host.
+
+---
+
+### Response shapes your frontend can rely on (analysis result)
+
+After submit or from `GET /jump-tests/{id}` / `GET /jump-tests/{id}/viz`, the `result` object includes:
+
+- **`phases`** — array of `{ name, start_time_s, end_time_s, duration_s, ... }`  
+- **`key_points`** — array of `{ name, index, time_s, value_N, ... }`  
+- **`metrics`** — flat dict of metric name → number (e.g. `jump_height_impulse_m`, `flight_time_s`, `peak_power_W`)  
+- **`analysis`** — `{ phases, key_points, metrics }` with per-key `{ value, explanation }` for tooltips/UI; use `analysis.phase_order` and `analysis.key_point_order` for display order.
+
+Use these for custom dashboards, tables, or charts alongside or instead of the built-in viewer.
+
+---
+
+### Error handling
+
+- **401 Unauthorized:** Missing or invalid/expired Bearer token on protected routes. Redirect to login or refresh token.  
+- **403 Forbidden:** Wrong or missing `X-Admin-Secret` on `POST /admin/register`.  
+- **404 Not Found:** Invalid `user_id` or `test_id` (e.g. not in DB).  
+- **409 Conflict:** Duplicate email (user or admin).  
+- **503 Service Unavailable:** Email send failed (e.g. SMTP not configured). Response `detail` explains the reason.
+
+All error responses follow the FastAPI default: `{ "detail": "message" }` (string or list of validation errors).
+
+---
+
+### Quick reference: env and URLs
+
+| Env / URL | Purpose |
+|-----------|--------|
+| `MONGODB_URI`, `MONGODB_DB` | Database (required for API) |
+| `ADMIN_SECRET` | Create admins via `POST /admin/register` |
+| `JWT_SECRET`, `JWT_EXPIRE_MINUTES` | Admin JWT |
+| `SMTP_*`, `EMAIL_BASE_URL` | Welcome + result emails |
+| `{base}/docs` | OpenAPI UI |
+| `{base}/health` | Health check |
+| `{base}/viewer?test_id=` | Viewer for one test |
+| `{base}/my-tests?user_id=` | User’s test list |
+| `{base}/admin` | Admin panel (login + user CRUD) |
+
+---
 
 ## Using this codebase as a service in your API
 
@@ -85,6 +316,108 @@ Raw JSON files in `saved_raw_data/` with:
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
+
+## Run the Jump Test API (lightweight server)
+
+From the project root, with MongoDB running (e.g. `mongodb://localhost:27017`):
+
+```bash
+export MONGODB_URI=mongodb://localhost:27017   # optional; default
+export MONGODB_DB=jumptest                     # optional; default
+PYTHONPATH=. .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+- **OpenAPI docs:** http://localhost:8000/docs  
+- **Documentation (MkDocs):** Run `mkdocs build` in the project root, then open http://localhost:8000/documentation/  
+- **Admin panel:** http://localhost:8000/admin — log in with an admin account (create admins via `POST /admin/register` with header `X-Admin-Secret`; see `.env.example`).  
+- **Users:** `POST/GET/PUT/DELETE /users`, `GET /users` (admin JWT required). User fields: name, last_name, email, phone_number, student_number, gender.  
+- **Jump tests:** `POST /jump-tests` (body: `test_type`, `test_duration`, `force` or `total_force`, `left_force`, `right_force`; optional `user_id`, optional `athlete_id`) → returns analysis and stores raw + result in MongoDB.  
+- **History:** `GET /jump-tests?user_id=...&athlete_id=...&test_type=...&from_date=...&to_date=...&limit=...&offset=...`  
+- **One result:** `GET /jump-tests/{id}`; **viz JSON for viewer:** `GET /jump-tests/{id}/viz`  
+- **Viewer:** http://localhost:8000/viewer?test_id=ID — shareable link to view a jump test. You must include `?test_id=<id>` in the URL; the viewer is served by the API so it can load data from `/jump-tests/{id}/viz`.  
+- **My tests:** http://localhost:8000/my-tests?user_id=ID — list tests for a user with “View” links.  
+- **Email result link:** `POST /jump-tests/{id}/send-link` (optional body `{ "email": "..." }`). Configure SMTP in `.env` (see below).
+
+### Configuring email (Gmail)
+
+To send jump test result links by email, set in `.env`:
+
+- `SMTP_HOST=smtp.gmail.com`, `SMTP_PORT=587`
+- `SMTP_USER` = your Gmail address
+- `SMTP_PASSWORD` = [App Password](https://myaccount.google.com/apppasswords) (not your normal password)
+- `SMTP_FROM` = same as SMTP_USER (or your sender address)
+- `EMAIL_BASE_URL` = public URL of your API (e.g. `http://localhost:8000` for local; use `https://...` in production so the link in the email works)
+
+If SMTP is missing or wrong, `POST /jump-tests/{id}/send-link` returns **503** with a message (e.g. "SMTP not configured..." or "SMTP authentication failed. For Gmail use an App Password...").
+
+### Create a user and send them a link
+
+To create a user (e.g. `sinasevda12389@gmail.com`) and send them a jump test result link:
+
+```bash
+export ADMIN_SECRET=your-secret
+PYTHONPATH=. python script/create_user_and_send_link.py sinasevda12389@gmail.com --test-id YOUR_TEST_ID
+```
+
+Or create the user, submit a jump test from a JSON file, then send the link in one go:
+
+```bash
+PYTHONPATH=. python script/create_user_and_send_link.py sinasevda12389@gmail.com --jump-test-json saved_raw_data/dj-data/sina_DJ_2026-02-18-1703.json
+```
+
+SMTP must be configured in `.env` for the email to be sent.
+
+### Test all endpoints (script)
+
+With the API running and `ADMIN_SECRET` set in `.env`, run (requires `requests`):
+
+```bash
+pip install requests
+export ADMIN_SECRET=your-secret
+PYTHONPATH=. python script/test_api_endpoints.py saved_raw_data/dj-data/sina_DJ_2026-02-18-1703.json
+```
+
+Or use a CMJ file: `saved_raw_data/cmj-data/saved3.json`. The script creates an admin (if needed), logs in, creates a user, submits the jump test from the JSON file, fetches the test and history, tries send-link, and prints the viewer and my-tests URLs.
+
+### Run with Docker
+
+The app is fully dockerized. Use Docker Compose to run the API and MongoDB together.
+
+**Prerequisites:** Docker and Docker Compose.
+
+1. **Create `.env`** (copy from `.env.example` and set at least `ADMIN_SECRET` and `JWT_SECRET`). When using `docker compose`, `MONGODB_URI` is overridden to `mongodb://mongodb:27017` so the API talks to the containerized MongoDB.
+
+2. **Build and start:**
+
+   ```bash
+   docker compose up -d
+   ```
+
+   - API: http://localhost:8000  
+   - OpenAPI: http://localhost:8000/docs  
+   - MongoDB: host `localhost`, port `27017` (if you need to connect from the host).
+
+3. **Create an admin** (first time):
+
+   ```bash
+   curl -X POST http://localhost:8000/admin/register \
+     -H "Content-Type: application/json" \
+     -H "X-Admin-Secret: YOUR_ADMIN_SECRET" \
+     -d '{"email":"admin@example.com","password":"your-password"}'
+   ```
+
+4. **Logs:** `docker compose logs -f api`
+
+5. **Stop:** `docker compose down`. Data is kept in the `mongodb_data` volume; use `docker compose down -v` to remove it.
+
+**Run the API image only** (with an external MongoDB):
+
+```bash
+docker build -t jumptest-api .
+docker run -p 8000:8000 -e MONGODB_URI=mongodb://host.docker.internal:27017 -e MONGODB_DB=jumptest -e ADMIN_SECRET=your-secret -e JWT_SECRET=your-jwt-secret jumptest-api
+```
+
+On Linux use the host’s IP instead of `host.docker.internal`, or run MongoDB in another container and link by service name.
 
 ## Run
 

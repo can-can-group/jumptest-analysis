@@ -1,0 +1,44 @@
+# Git and env
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+
+# Python
+.venv
+venv
+__pycache__
+*.py[cod]
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# MkDocs build output (we run mkdocs build inside the image)
+site/
+
+# Local data and outputs (not needed in image)
+saved_raw_data/
+output/
+# Exclude large JSON data; allow docs and config
+saved_raw_data/**/*.json
+output/**/*.json
+
+# Docs tooling only (optional; keep docs/ for mkdocs build)
+# docs/_build/
+
+# IDE and OS
+.idea
+.vscode
+.DS_Store
+
+# Test and coverage
+htmlcov
+.coverage
+*.cover
+
+# Large or dev-only
+*.mp4
+*.mov
+*.log

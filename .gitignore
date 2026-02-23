@@ -150,6 +150,9 @@ activemq-data/
 # Environments
 .env
 .envrc
+
+# MkDocs build output (served at /documentation when present)
+site/
 .venv
 env/
 venv/

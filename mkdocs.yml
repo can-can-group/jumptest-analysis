@@ -1,0 +1,25 @@
+site_name: Jump Test API
+site_description: API documentation for the Jump Test service (users, jump tests, analysis, viewer).
+site_url: null
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+
+nav:
+  - Home: index.md
+  - API usage:
+    - Overview: overview.md
+    - Request examples: request-examples.md
+    - Authentication: authentication.md
+    - Users: users.md
+    - Jump test data: jump-test-data.md
+    - Users and jump tests: users-and-jump-tests.md
+    - Historical data: historical-data.md
+    - Viewer and shareable links: viewer-and-email.md
+  - Algorithm and metrics:
+    - Detection and metrics: DETECTION_AND_METRICS.md
+    - Drop jump analysis: DROP_JUMP_ANALYSIS.md
+    - Drop jump detection: DROP_JUMP_DETECTION_ALGORITHM.md
+    - Squat jump: SQUAT_JUMP_METRICS_AND_STATISTICS.md

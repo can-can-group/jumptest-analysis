@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Admin – Jump Test API</title>
+  <style>
+    :root {
+      --bg: #0f0f12;
+      --surface: #1a1a1f;
+      --border: #2a2a32;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --danger: #ef4444;
+      --danger-hover: #dc2626;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: "DM Sans", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+    .wrap {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem 0;
+    }
+    .links {
+      margin-bottom: 1.5rem;
+    }
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      margin-right: 1rem;
+    }
+    .links a:hover { text-decoration: underline; }
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      padding: 0.75rem 1.25rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      z-index: 100;
+      animation: fadeIn 0.2s ease;
+    }
+    .toast.success { background: var(--success); color: #000; }
+    .toast.error { background: var(--danger); color: #fff; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .form-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .form-card h2 { font-size: 1rem; margin: 0 0 1rem 0; font-weight: 600; }
+    .form-row {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
+    .field { flex: 1; min-width: 180px; }
+    .field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .field input {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    .field input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { background: #3a3a44; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: var(--danger-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.75rem 1rem; text-align: left; }
+    th {
+      background: var(--bg);
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    tr { border-bottom: 1px solid var(--border); }
+    tr:last-child { border-bottom: none; }
+    tr:hover { background: rgba(255,255,255,0.02); }
+    .actions { display: flex; gap: 0.5rem; }
+    .actions .btn { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
+    .empty { color: var(--muted); padding: 2rem; text-align: center; }
+    .loading { color: var(--muted); padding: 1rem; }
+    .id-cell { font-size: 0.8rem; color: var(--muted); font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>User Admin</h1>
+    <div class="links">
+      <a href="/admin">Admin</a>
+      <a href="/docs" target="_blank">API Docs</a>
+      <a href="/health">Health</a>
+      <button type="button" class="btn btn-secondary" id="logout-btn" style="display: none;">Logout</button>
+    </div>
+
+    <div id="login-screen" class="form-card">
+      <h2>Admin login</h2>
+      <form id="login-form">
+        <div class="form-row">
+          <div class="field">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" required placeholder="admin@example.com">
+          </div>
+          <div class="field">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" required placeholder="••••••••">
+          </div>
+          <div style="align-items: flex-end;">
+            <button type="submit" class="btn btn-primary">Login</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div id="admin-panel" style="display: none;">
+    <div class="form-card">
+      <h2 id="form-title">Create user</h2>
+      <form id="user-form">
+        <input type="hidden" id="user-id" value="">
+        <div class="form-row">
+          <div class="field">
+            <label for="name">Name</label>
+            <input type="text" id="name" placeholder="First name">
+          </div>
+          <div class="field">
+            <label for="last-name">Last name</label>
+            <input type="text" id="last-name" placeholder="Last name">
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" required placeholder="user@example.com">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label for="phone-number">Phone number</label>
+            <input type="text" id="phone-number" placeholder="+1 234 567 8900">
+          </div>
+          <div class="field">
+            <label for="student-number">Student number</label>
+            <input type="text" id="student-number" placeholder="Student ID">
+          </div>
+          <div class="field">
+            <label for="gender">Gender</label>
+            <input type="text" id="gender" placeholder="e.g. male, female, other">
+          </div>
+          <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+            <button type="submit" class="btn btn-primary" id="submit-btn">Create</button>
+            <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">Cancel</button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Name</th>
+            <th>Last name</th>
+            <th>Phone</th>
+            <th>Student no.</th>
+            <th>Gender</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="user-list">
+          <tr><td colspan="8" class="loading">Loading users…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" style="display: none;" role="status"></div>
+
+  <script>
+    const API = '';
+    const TOKEN_KEY = 'jumptest_admin_token';
+    const loginScreen = document.getElementById('login-screen');
+    const adminPanel = document.getElementById('admin-panel');
+    const logoutBtn = document.getElementById('logout-btn');
+    const tbody = document.getElementById('user-list');
+    const form = document.getElementById('user-form');
+    const formTitle = document.getElementById('form-title');
+    const submitBtn = document.getElementById('submit-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const userIdInput = document.getElementById('user-id');
+    const emailInput = document.getElementById('email');
+    const nameInput = document.getElementById('name');
+    const lastNameInput = document.getElementById('last-name');
+    const phoneInput = document.getElementById('phone-number');
+    const studentInput = document.getElementById('student-number');
+    const genderInput = document.getElementById('gender');
+    const toastEl = document.getElementById('toast');
+
+    function getToken() { return localStorage.getItem(TOKEN_KEY); }
+    function setToken(t) { if (t) localStorage.setItem(TOKEN_KEY, t); else localStorage.removeItem(TOKEN_KEY); }
+
+    function showPanel(loggedIn) {
+      loginScreen.style.display = loggedIn ? 'none' : 'block';
+      adminPanel.style.display = loggedIn ? 'block' : 'none';
+      logoutBtn.style.display = loggedIn ? 'inline-block' : 'none';
+      if (loggedIn) loadUsers();
+    }
+
+    function authHeaders() {
+      const t = getToken();
+      return t ? { 'Authorization': 'Bearer ' + t } : {};
+    }
+
+    async function fetchWithAuth(url, options) {
+      const opts = options || {};
+      opts.headers = Object.assign({}, opts.headers, authHeaders());
+      const r = await fetch(url, opts);
+      if (r.status === 401) {
+        setToken(null);
+        showPanel(false);
+        throw new Error('Session expired. Please log in again.');
+      }
+      return r;
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      try {
+        const r = await fetch(API + '/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.detail || r.statusText);
+        }
+        const data = await r.json();
+        setToken(data.access_token);
+        showPanel(true);
+        toast('Logged in.');
+      } catch (err) {
+        toast(err.message || 'Login failed', 'error');
+      }
+    });
+
+    logoutBtn.addEventListener('click', function() {
+      setToken(null);
+      showPanel(false);
+    });
+
+    function toast(message, type = 'success') {
+      toastEl.textContent = message;
+      toastEl.className = 'toast ' + type;
+      toastEl.style.display = 'block';
+      setTimeout(() => { toastEl.style.display = 'none'; }, 4000);
+    }
+
+    function formatDate(d) {
+      try {
+        return new Date(d).toLocaleString();
+      } catch (_) { return d || '—'; }
+    }
+
+    async function loadUsers() {
+      tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading users…</td></tr>';
+      try {
+        const r = await fetchWithAuth(API + '/users');
+        if (!r.ok) throw new Error(r.statusText);
+        const users = await r.json();
+        if (users.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty">No users yet. Create one above.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = users.map(u => `
+          <tr>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.name || '—')}</td>
+            <td>${escapeHtml(u.last_name || '—')}</td>
+            <td>${escapeHtml(u.phone_number || '—')}</td>
+            <td>${escapeHtml(u.student_number || '—')}</td>
+            <td>${escapeHtml(u.gender || '—')}</td>
+            <td>${formatDate(u.created_at)}</td>
+            <td class="actions">
+              <button type="button" class="btn btn-secondary" data-action="edit" data-id="${escapeHtml(u.id)}" data-email="${escapeHtml(u.email)}" data-name="${escapeHtml(u.name || '')}" data-last-name="${escapeHtml(u.last_name || '')}" data-phone="${escapeHtml(u.phone_number || '')}" data-student="${escapeHtml(u.student_number || '')}" data-gender="${escapeHtml(u.gender || '')}">Edit</button>
+              <button type="button" class="btn btn-danger" data-action="delete" data-id="${escapeHtml(u.id)}" data-email="${escapeHtml(u.email)}">Delete</button>
+            </td>
+          </tr>
+        `).join('');
+        tbody.querySelectorAll('[data-action="edit"]').forEach(btn => btn.addEventListener('click', onEdit));
+        tbody.querySelectorAll('[data-action="delete"]').forEach(btn => btn.addEventListener('click', onDelete));
+      } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty" style="color: var(--danger);">Failed to load: ' + escapeHtml(e.message) + '</td></tr>';
+      }
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    function setCreateMode() {
+      userIdInput.value = '';
+      formTitle.textContent = 'Create user';
+      submitBtn.textContent = 'Create';
+      cancelBtn.style.display = 'none';
+      emailInput.disabled = false;
+      form.reset();
+    }
+
+    function setEditMode(user) {
+      userIdInput.value = user.id;
+      emailInput.value = user.email || '';
+      nameInput.value = user.name || '';
+      lastNameInput.value = user.last_name || '';
+      phoneInput.value = user.phone_number || '';
+      studentInput.value = user.student_number || '';
+      genderInput.value = user.gender || '';
+      formTitle.textContent = 'Edit user';
+      submitBtn.textContent = 'Save';
+      cancelBtn.style.display = 'inline-block';
+      emailInput.disabled = true;
+    }
+
+    function onEdit(e) {
+      const b = e.target;
+      setEditMode({
+        id: b.dataset.id,
+        email: b.dataset.email,
+        name: b.dataset.name || '',
+        last_name: b.dataset.lastName || '',
+        phone_number: b.dataset.phone || '',
+        student_number: b.dataset.student || '',
+        gender: b.dataset.gender || ''
+      });
+    }
+
+    async function onDelete(e) {
+      const id = e.target.dataset.id;
+      const email = e.target.dataset.email;
+      if (!confirm('Delete user “‘ + email + ’”? This cannot be undone.')) return;
+      try {
+        const r = await fetchWithAuth(API + '/users/' + id, { method: 'DELETE', headers: authHeaders() });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({}));
+          throw new Error(err.detail || r.statusText);
+        }
+        toast('User deleted.');
+        setCreateMode();
+        loadUsers();
+      } catch (err) {
+        toast(err.message || 'Delete failed', 'error');
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = userIdInput.value.trim();
+      const email = emailInput.value.trim();
+      const name = nameInput.value.trim();
+      const last_name = lastNameInput.value.trim();
+      const phone_number = phoneInput.value.trim();
+      const student_number = studentInput.value.trim();
+      const gender = genderInput.value.trim();
+      if (!email) return;
+      submitBtn.disabled = true;
+      try {
+        if (id) {
+          const r = await fetchWithAuth(API + '/users/' + id, {
+            method: 'PUT',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+            body: JSON.stringify({
+              name: name || null,
+              last_name: last_name || null,
+              phone_number: phone_number || null,
+              student_number: student_number || null,
+              gender: gender || null
+            })
+          });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.detail || r.statusText);
+          }
+          toast('User updated.');
+        } else {
+          const r = await fetchWithAuth(API + '/users', {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+            body: JSON.stringify({
+              email,
+              name: name || null,
+              last_name: last_name || null,
+              phone_number: phone_number || null,
+              student_number: student_number || null,
+              gender: gender || null
+            })
+          });
+          if (!r.ok) {
+            const err = await r.json().catch(() => ({}));
+            throw new Error(err.detail || r.statusText);
+          }
+          toast('User created.');
+        }
+        setCreateMode();
+        loadUsers();
+      } catch (err) {
+        toast(err.message || 'Request failed', 'error');
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    cancelBtn.addEventListener('click', setCreateMode);
+
+    if (getToken()) showPanel(true);
+    else showPanel(false);
+  </script>
+</body>
+</html>
