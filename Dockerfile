@@ -19,7 +19,7 @@ RUN mkdocs build 2>/dev/null || true
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-EXPOSE 8000
+EXPOSE 8765
 
 # Default: run API (override CMD for migrations or one-off scripts)
-CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8765"]

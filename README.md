@@ -381,11 +381,14 @@ Or use a CMJ file: `saved_raw_data/cmj-data/saved3.json`. The script creates an 
 
 ### Run with Docker
 
-The app is fully dockerized. Use Docker Compose to run the API and MongoDB together.
+Only the **API** runs in Docker. MongoDB is not included—use your cloud database by setting `MONGODB_URI` (and optionally `MONGODB_DB`) in `.env`.
 
 **Prerequisites:** Docker and Docker Compose.
 
-1. **Create `.env`** (copy from `.env.example` and set at least `ADMIN_SECRET` and `JWT_SECRET`). When using `docker compose`, `MONGODB_URI` is overridden to `mongodb://mongodb:27017` so the API talks to the containerized MongoDB.
+1. **Create `.env`** (copy from `.env.example`). Set at least:
+   - `MONGODB_URI` — your cloud MongoDB connection string (e.g. Atlas `mongodb+srv://...`)
+   - `MONGODB_DB` — database name (default `jumptest`)
+   - `ADMIN_SECRET`, `JWT_SECRET` — for admin auth
 
 2. **Build and start:**
 
@@ -395,7 +398,6 @@ The app is fully dockerized. Use Docker Compose to run the API and MongoDB toget
 
    - API: http://localhost:8000  
    - OpenAPI: http://localhost:8000/docs  
-   - MongoDB: host `localhost`, port `27017` (if you need to connect from the host).
 
 3. **Create an admin** (first time):
 
@@ -408,16 +410,7 @@ The app is fully dockerized. Use Docker Compose to run the API and MongoDB toget
 
 4. **Logs:** `docker compose logs -f api`
 
-5. **Stop:** `docker compose down`. Data is kept in the `mongodb_data` volume; use `docker compose down -v` to remove it.
-
-**Run the API image only** (with an external MongoDB):
-
-```bash
-docker build -t jumptest-api .
-docker run -p 8000:8000 -e MONGODB_URI=mongodb://host.docker.internal:27017 -e MONGODB_DB=jumptest -e ADMIN_SECRET=your-secret -e JWT_SECRET=your-jwt-secret jumptest-api
-```
-
-On Linux use the host’s IP instead of `host.docker.internal`, or run MongoDB in another container and link by service name.
+5. **Stop:** `docker compose down`
 
 ## Run
 
