@@ -72,8 +72,15 @@
       flex-wrap: wrap;
       align-items: flex-end;
     }
-    .field { flex: 1; min-width: 180px; }
+    .field { flex: 1 1 140px; min-width: 0; max-width: 100%; }
     .field label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.35rem; }
+    .form-actions {
+      flex: 0 0 auto;
+      display: flex;
+      gap: 0.5rem;
+      align-items: flex-end;
+      min-width: 0;
+    }
     .field input {
       width: 100%;
       padding: 0.5rem 0.75rem;
@@ -106,9 +113,10 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 12px;
-      overflow: hidden;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
     }
-    table { width: 100%; border-collapse: collapse; }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
     th, td { padding: 0.75rem 1rem; text-align: left; }
     th {
       background: var(--bg);
@@ -121,11 +129,18 @@
     tr { border-bottom: 1px solid var(--border); }
     tr:last-child { border-bottom: none; }
     tr:hover { background: rgba(255,255,255,0.02); }
-    .actions { display: flex; gap: 0.5rem; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
     .actions .btn { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
     .empty { color: var(--muted); padding: 2rem; text-align: center; }
     .loading { color: var(--muted); padding: 1rem; }
     .id-cell { font-size: 0.8rem; color: var(--muted); font-family: monospace; }
+
+    @media (max-width: 640px) {
+      .wrap { padding: 1rem; }
+      .form-row { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+      .field { flex: 1 1 auto; max-width: none; }
+      .form-actions { justify-content: flex-start; margin-top: 0.25rem; }
+    }
   </style>
 </head>
 <body>
@@ -150,7 +165,7 @@
             <label for="login-password">Password</label>
             <input type="password" id="login-password" required placeholder="••••••••">
           </div>
-          <div style="align-items: flex-end;">
+          <div class="form-actions">
             <button type="submit" class="btn btn-primary">Login</button>
           </div>
         </div>
@@ -189,7 +204,7 @@
             <label for="gender">Gender</label>
             <input type="text" id="gender" placeholder="e.g. male, female, other">
           </div>
-          <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+          <div class="form-actions">
             <button type="submit" class="btn btn-primary" id="submit-btn">Create</button>
             <button type="button" class="btn btn-secondary" id="cancel-btn" style="display: none;">Cancel</button>
           </div>
