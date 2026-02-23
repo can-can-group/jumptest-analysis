@@ -27,7 +27,7 @@ if MONGODB_URI and not (MONGODB_URI.startswith("mongodb://") or MONGODB_URI.star
 # Admin and JWT (create admins via curl/Postman with ADMIN_SECRET)
 ADMIN_SECRET = _str(os.environ.get("ADMIN_SECRET"))
 JWT_SECRET = _str(os.environ.get("JWT_SECRET") or "change-me-in-production")
-JWT_EXPIRE_MINUTES = int(os.environ.get("JWT_EXPIRE_MINUTES", "60"))
+JWT_EXPIRE_MINUTES = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))  # default: 7 days
 
 # Email (SMTP) for sending jump test result links
 SMTP_HOST = _str(os.environ.get("SMTP_HOST"))
