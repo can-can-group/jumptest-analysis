@@ -51,6 +51,7 @@
 
   <script>
     (function() {
+      var basePath = (window.__BASE_PATH__ || '').replace(/\/$/, '');
       var params = new URLSearchParams(window.location.search);
       var userId = params.get('user_id');
       var content = document.getElementById('content');
@@ -60,7 +61,7 @@
         return;
       }
 
-      fetch('/jump-tests?user_id=' + encodeURIComponent(userId) + '&limit=100')
+      fetch(basePath + '/jump-tests?user_id=' + encodeURIComponent(userId) + '&limit=100')
         .then(function(r) {
           if (!r.ok) throw new Error('Failed to load tests');
           return r.json();
@@ -79,7 +80,7 @@
             if (jumpHeight != null) meta += ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m';
             return '<div class="card">' +
               '<div class="card-info"><strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') + '</div>' +
-              '<a class="view-link" href="/viewer?test_id=' + encodeURIComponent(t.id) + '">View</a>' +
+              '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '">View</a>' +
               '</div>';
           }).join('') + '</div>';
         })

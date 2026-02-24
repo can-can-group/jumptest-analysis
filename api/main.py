@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
+from api.config import BASE_PATH
 from api.db import init_db
 from api.routers import auth, jump_tests, users
 
@@ -54,15 +55,15 @@ def _viewer_html() -> str:
     """Serve viewer with data-api-base so ?test_id= works."""
     path = Path(__file__).resolve().parent.parent / "web" / "viewer.html"
     html = path.read_text(encoding="utf-8")
-    # Ensure viewerContainer with data-api-base exists so ?test_id= can fetch from API
+    api_base = f"{BASE_PATH}/jump-tests"
     inject = (
-        '<div id="viewerContainer" data-api-base="/jump-tests" style="display:none"></div>\n'
+        f'<div id="viewerContainer" data-api-base="{api_base}" style="display:none"></div>\n'
         '<script>(function(){ var c = document.getElementById("viewerContainer"); '
-        'if (!c) { c = document.createElement("div"); c.id = "viewerContainer"; '
-        'c.setAttribute("data-api-base", "/jump-tests"); c.style.display = "none"; '
+        f'if (!c) {{ c = document.createElement("div"); c.id = "viewerContainer"; '
+        f'c.setAttribute("data-api-base", "{api_base}"); c.style.display = "none"; '
         'document.body.insertBefore(c, document.body.firstChild); } })();</script>\n  '
     )
-    if "viewerContainer" not in html or 'data-api-base="/jump-tests"' not in html:
+    if "viewerContainer" not in html or f'data-api-base="{api_base}"' not in html:
         html = re.sub(r"<body(\s[^>]*)?>", r"<body\1>\n  " + inject, html, count=1)
     return html
 
@@ -77,7 +78,10 @@ def viewer():
 def my_tests():
     """User-facing page: list jump tests for user_id (query param) with links to viewer."""
     path = Path(__file__).resolve().parent / "static" / "my-tests.html"
-    return path.read_text(encoding="utf-8")
+    html = path.read_text(encoding="utf-8")
+    script = f'<script>window.__BASE_PATH__="{BASE_PATH}";</script>'
+    html = html.replace("</head>", script + "\n</head>", 1)
+    return html
 
 
 # MkDocs documentation (build with: mkdocs build)

@@ -36,3 +36,10 @@ SMTP_USER = _str(os.environ.get("SMTP_USER"))
 SMTP_PASSWORD = _str(os.environ.get("SMTP_PASSWORD"))
 SMTP_FROM = _str(os.environ.get("SMTP_FROM") or os.environ.get("EMAIL_FROM"))
 EMAIL_BASE_URL = _str(os.environ.get("EMAIL_BASE_URL") or "")
+
+# Public URL prefix when served behind a reverse proxy (e.g. /arge, /jump-test).
+# Leave empty for standalone / development (API served at root).
+_raw_base_path = _str(os.environ.get("BASE_PATH") or "")
+if _raw_base_path and not _raw_base_path.startswith("/"):
+    _raw_base_path = "/" + _raw_base_path
+BASE_PATH = _raw_base_path.rstrip("/")

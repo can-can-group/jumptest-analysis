@@ -1486,9 +1486,8 @@
       var currentTests = [];
       var currentIdForCompare = '';
       var baseUrlFn = function() {
-        var p = window.location.pathname;
-        var m = p.match(/^\/jumptest\/[^/]+\/view\/?$/);
-        return m ? p.replace(/\/[^/]+\/view\/?$/, '') : (p.replace(/\/view\/?$/, '') || '/jumptest');
+        var c = document.getElementById('viewerContainer') || document.querySelector('[data-api-base]');
+        return c ? c.getAttribute('data-api-base') : '/jump-tests';
       };
       function showModal() { overlay.classList.add('visible'); overlay.setAttribute('aria-hidden', 'false'); }
       function hideModal() { overlay.classList.remove('visible'); overlay.setAttribute('aria-hidden', 'true'); }
@@ -1657,9 +1656,8 @@
 
     (function initPdfEmailViewAnother() {
       function baseUrl() {
-        var p = window.location.pathname;
-        var m = p.match(/^\/jumptest\/[^/]+\/view\/?$/);
-        return m ? p.replace(/\/[^/]+\/view\/?$/, '') : (p.replace(/\/view\/?$/, '') || '/jumptest');
+        var c = document.getElementById('viewerContainer') || document.querySelector('[data-api-base]');
+        return c ? c.getAttribute('data-api-base') : '/jump-tests';
       }
       var downloadPdfBtn = document.getElementById('downloadPdfBtn');
       if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', function() {

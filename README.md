@@ -17,7 +17,7 @@ This section documents everything needed to integrate a web or mobile frontend w
 
 ### Authentication (admin only)
 
-Only **admin** users are authenticated. There is no end-user login; athletes view their tests via shareable links (`/my-tests?user_id=...`, `/viewer?test_id=...`).
+Only **admin** users are authenticated. There is no end-user login; athletes view their tests via shareable links (`/my-tests?user_id=...`, `/viewer?test_id=...`). In production, the API is served behind a reverse proxy and email links route through the main website; see **Reverse proxy and gateway routing** below.
 
 **1. Create an admin (one-time, e.g. from backend or script)**  
 - **Endpoint:** `POST /admin/register`  
@@ -181,15 +181,36 @@ Returns only the `result` payload (time series, phases, key_points, metrics, ana
 
 ### Viewer and “My tests” pages (shareable links)
 
-The API serves two HTML pages that your frontend can link to or embed:
+The API serves two HTML pages:
 
 - **Viewer (single test):** `{base}/viewer?test_id=<id>`  
-  Loads the test from `GET /jump-tests/{id}/viz` and shows the force chart, phases, and key points. Use this URL in emails or your app (e.g. “View result”).
+  Loads the test from `GET /jump-tests/{id}/viz` and shows the force chart, phases, and key points.
 
 - **My tests (user’s list):** `{base}/my-tests?user_id=<user_id>`  
-  Lists that user’s jump tests with “View” links to the viewer. This is the URL included in the welcome email.
+  Lists that user’s jump tests with “View” links to the viewer.
 
-Both work without authentication. Ensure `EMAIL_BASE_URL` in `.env` matches your public API URL so email links point to the correct host.
+Both work without authentication.
+
+### Reverse proxy and gateway routing (production)
+
+When deployed behind a reverse proxy (e.g. Nginx at `wellbodytech.com/arge/`), set `BASE_PATH` in `.env` to match the proxy location:
+
+```env
+BASE_PATH=/arge
+EMAIL_BASE_URL=https://wellbodytech.com
+```
+
+**How it works:**
+
+1. Nginx proxies `wellbodytech.com/arge/*` to `localhost:8765/*` (path stripping)
+2. `BASE_PATH=/arge` makes all internal links and API calls use the `/arge/` prefix
+3. `EMAIL_BASE_URL=https://wellbodytech.com` makes email links point to the website gateway
+4. The website has gateway pages (`/viewer`, `/my-tests`) that embed the API in an iframe via `/arge/viewer?test_id=<id>`
+5. All traffic stays on `wellbodytech.com` — no separate subdomain needed
+
+For self-hosted deployments without a website gateway, set `EMAIL_BASE_URL` to the public API URL (e.g. `https://customer.com/jump-test`). Email links go directly to the API viewer.
+
+For local development, leave both `BASE_PATH` and `EMAIL_BASE_URL` empty (defaults to root path and `localhost:8000`).
 
 ---
 
@@ -226,6 +247,7 @@ All error responses follow the FastAPI default: `{ "detail": "message" }` (strin
 | `ADMIN_SECRET` | Create admins via `POST /admin/register` |
 | `JWT_SECRET`, `JWT_EXPIRE_MINUTES` | Admin JWT |
 | `SMTP_*`, `EMAIL_BASE_URL` | Welcome + result emails |
+| `BASE_PATH` | Reverse proxy prefix (e.g. `/arge`); empty for standalone |
 | `{base}/docs` | OpenAPI UI |
 | `{base}/health` | Health check |
 | `{base}/viewer?test_id=` | Viewer for one test |
@@ -346,7 +368,7 @@ To send jump test result links by email, set in `.env`:
 - `SMTP_USER` = your Gmail address
 - `SMTP_PASSWORD` = [App Password](https://myaccount.google.com/apppasswords) (not your normal password)
 - `SMTP_FROM` = same as SMTP_USER (or your sender address)
-- `EMAIL_BASE_URL` = public URL of your API (e.g. `http://localhost:8000` for local; use `https://...` in production so the link in the email works)
+- `EMAIL_BASE_URL` = base URL for email links. Set to `https://wellbodytech.com` in production (gateway routing) or `http://localhost:8000` for local development
 
 If SMTP is missing or wrong, `POST /jump-tests/{id}/send-link` returns **503** with a message (e.g. "SMTP not configured..." or "SMTP authentication failed. For Gmail use an App Password...").
 
