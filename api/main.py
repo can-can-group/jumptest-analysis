@@ -48,7 +48,10 @@ def health():
 def admin_panel():
     """Admin panel: create and manage users (CRUD) in real time."""
     path = Path(__file__).resolve().parent / "static" / "admin.html"
-    return path.read_text(encoding="utf-8")
+    html = path.read_text(encoding="utf-8")
+    script = f'<script>window.__BASE_PATH__="{BASE_PATH}";</script>'
+    html = html.replace("</head>", script + "\n</head>", 1)
+    return html
 
 
 def _viewer_html() -> str:

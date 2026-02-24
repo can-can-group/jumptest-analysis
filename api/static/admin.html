@@ -147,11 +147,19 @@
   <div class="wrap">
     <h1>User Admin</h1>
     <div class="links">
-      <a href="/admin">Admin</a>
-      <a href="/docs" target="_blank">API Docs</a>
-      <a href="/health">Health</a>
+      <a href="" id="nav-admin">Admin</a>
+      <a href="" id="nav-docs" target="_blank">API Docs</a>
+      <a href="" id="nav-health">Health</a>
       <button type="button" class="btn btn-secondary" id="logout-btn" style="display: none;">Logout</button>
     </div>
+    <script>
+      (function() {
+        var bp = (window.__BASE_PATH__ || '').replace(/\/$/, '');
+        document.getElementById('nav-admin').href = bp + '/admin';
+        document.getElementById('nav-docs').href = bp + '/docs';
+        document.getElementById('nav-health').href = bp + '/health';
+      })();
+    </script>
 
     <div id="login-screen" class="form-card">
       <h2>Admin login</h2>
@@ -237,7 +245,7 @@
   <div id="toast" class="toast" style="display: none;" role="status"></div>
 
   <script>
-    const API = '';
+    const API = (window.__BASE_PATH__ || '').replace(/\/$/, '');
     const TOKEN_KEY = 'jumptest_admin_token';
     const loginScreen = document.getElementById('login-screen');
     const adminPanel = document.getElementById('admin-panel');
