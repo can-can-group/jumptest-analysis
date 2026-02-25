@@ -407,11 +407,8 @@
     <h1>Force Plate — Phase & Key Point Viewer</h1>
     <p class="subtitle" id="subtitle">Jump test results.</p>
 
-    <div id="backToMyTestsBar" class="no-print" style="display:none; margin-bottom: 1rem;">
-      <a id="backToMyTestsBtn" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); text-decoration:none; color:var(--text); font-size:0.9rem; cursor:pointer;">← My Tests</a>
-    </div>
-
     <div id="standaloneToolbar" class="toolbar no-print" style="margin-bottom: 1rem;">
+      <a id="backToMyTestsBtn" style="display:none; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); text-decoration:none; color:var(--text); font-size:0.9rem; cursor:pointer;">← My Tests</a>
       <label>Load visualization JSON
         <input type="file" id="fileInputViz" accept=".json">
       </label>
@@ -1485,14 +1482,13 @@
       var params = new URLSearchParams(window.location.search);
       var uid = params.get('user_id');
       if (!uid) return;
-      var bar = document.getElementById('backToMyTestsBar');
       var btn = document.getElementById('backToMyTestsBtn');
-      if (!bar || !btn) return;
+      if (!btn) return;
       var container = document.getElementById('viewerContainer') || document.querySelector('[data-api-base]');
       var apiBase = container ? container.getAttribute('data-api-base') : '';
       var basePath = apiBase ? apiBase.replace(/\/jump-tests$/, '') : '';
       btn.href = basePath + '/my-tests?user_id=' + encodeURIComponent(uid);
-      bar.style.display = 'block';
+      btn.style.display = 'inline-flex';
     })();
 
     (function initCompare() {
