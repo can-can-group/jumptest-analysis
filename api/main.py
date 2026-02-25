@@ -24,6 +24,7 @@ app = FastAPI(
     description="Submit jump test data (CMJ/DJ/SJ), get analysis results, and view historical data. User CRUD and MongoDB storage.",
     version="1.0.0",
     lifespan=lifespan,
+    root_path=BASE_PATH or "",
 )
 
 app.add_middleware(
@@ -92,7 +93,9 @@ _site_dir = Path(__file__).resolve().parent.parent / "site"
 if _site_dir.is_dir():
     @app.get("/documentation", include_in_schema=False)
     def _doc_redirect():
-        return RedirectResponse(url="/documentation/index.html", status_code=302)
+        prefix = (BASE_PATH or "").rstrip("/")
+        path = f"{prefix}/documentation/index.html" if prefix else "/documentation/index.html"
+        return RedirectResponse(url=path, status_code=302)
     app.mount("/documentation", StaticFiles(directory=str(_site_dir), html=True), name="documentation")
 else:
     @app.get("/documentation")

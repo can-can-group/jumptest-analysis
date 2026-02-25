@@ -27,15 +27,39 @@
       line-height: 1.5;
     }
     .wrap {
-      max-width: 900px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 2rem 1.5rem;
     }
-    h1 {
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .header-row h1 {
       font-size: 1.5rem;
       font-weight: 600;
-      margin: 0 0 0.5rem 0;
+      margin: 0;
     }
+    .health-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+    .health-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .health-dot.pending { background: var(--muted); }
+    .health-dot.ok { background: var(--success); }
+    .health-dot.err { background: var(--danger); }
+    .health-dot.warn { background: #eab308; }
     .links {
       margin-bottom: 1.5rem;
     }
@@ -116,7 +140,7 @@
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
     }
-    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    table { width: 100%; border-collapse: collapse; min-width: 960px; }
     th, td { padding: 0.75rem 1rem; text-align: left; }
     th {
       background: var(--bg);
@@ -134,6 +158,33 @@
     .empty { color: var(--muted); padding: 2rem; text-align: center; }
     .loading { color: var(--muted); padding: 1rem; }
     .id-cell { font-size: 0.8rem; color: var(--muted); font-family: monospace; }
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      margin-bottom: 0.5rem;
+    }
+    .pagination-bar .limit-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.875rem;
+      color: var(--muted);
+    }
+    .pagination-bar select {
+      padding: 0.35rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.875rem;
+    }
+    .pagination-bar .range { font-size: 0.875rem; color: var(--muted); }
+    .pagination-bar .nav-buttons { display: flex; gap: 0.5rem; }
+    .pagination-bar .nav-buttons .btn { padding: 0.35rem 0.75rem; font-size: 0.8rem; }
 
     @media (max-width: 640px) {
       .wrap { padding: 1rem; }
@@ -145,11 +196,16 @@
 </head>
 <body>
   <div class="wrap">
-    <h1>User Admin</h1>
+    <div class="header-row">
+      <h1>User Admin</h1>
+      <div class="health-indicator" id="health-indicator" title="API health">
+        <span class="health-dot pending" id="health-dot" aria-hidden="true"></span>
+        <span id="health-label">API</span>
+      </div>
+    </div>
     <div class="links">
       <a href="" id="nav-admin">Admin</a>
       <a href="" id="nav-docs" target="_blank">API Docs</a>
-      <a href="" id="nav-health">Health</a>
       <button type="button" class="btn btn-secondary" id="logout-btn" style="display: none;">Logout</button>
     </div>
     <script>
@@ -157,7 +213,6 @@
         var bp = (window.__BASE_PATH__ || '').replace(/\/$/, '');
         document.getElementById('nav-admin').href = bp + '/admin';
         document.getElementById('nav-docs').href = bp + '/docs';
-        document.getElementById('nav-health').href = bp + '/health';
       })();
     </script>
 
@@ -221,6 +276,23 @@
     </div>
 
     <div class="table-wrap">
+      <div class="pagination-bar">
+        <label class="limit-select">
+          Show
+          <select id="user-limit" aria-label="Users per page">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+          per page
+        </label>
+        <span class="range" id="user-range">—</span>
+        <div class="nav-buttons">
+          <button type="button" class="btn btn-secondary" id="user-prev" aria-label="Previous page">Prev</button>
+          <button type="button" class="btn btn-secondary" id="user-next" aria-label="Next page">Next</button>
+        </div>
+      </div>
       <table>
         <thead>
           <tr>
@@ -247,6 +319,32 @@
   <script>
     const API = (window.__BASE_PATH__ || '').replace(/\/$/, '');
     const TOKEN_KEY = 'jumptest_admin_token';
+
+    (function initHealthIndicator() {
+      var dot = document.getElementById('health-dot');
+      var label = document.getElementById('health-label');
+      if (!dot || !label) return;
+      function setState(state, text) {
+        dot.className = 'health-dot ' + state;
+        dot.setAttribute('title', text || (state === 'ok' ? 'API is up' : state === 'err' ? 'API unreachable' : 'Checking…'));
+        if (text) label.textContent = text;
+      }
+      function check() {
+        setState('pending', 'API');
+        fetch(API + '/health', { method: 'GET' })
+          .then(function(r) {
+            if (!r.ok) { setState('err', 'API'); return; }
+            return r.json();
+          })
+          .then(function(data) {
+            if (data && data.status === 'ok') setState('ok', 'API');
+            else setState('warn', 'API');
+          })
+          .catch(function() { setState('err', 'API'); });
+      }
+      check();
+      setInterval(check, 45000);
+    })();
     const loginScreen = document.getElementById('login-screen');
     const adminPanel = document.getElementById('admin-panel');
     const logoutBtn = document.getElementById('logout-btn');
@@ -332,14 +430,35 @@
       } catch (_) { return d || '—'; }
     }
 
+    var userOffset = 0;
+
     async function loadUsers() {
+      var limitEl = document.getElementById('user-limit');
+      var limit = limitEl ? parseInt(limitEl.value, 10) : 20;
+      var rangeEl = document.getElementById('user-range');
+      var prevBtn = document.getElementById('user-prev');
+      var nextBtn = document.getElementById('user-next');
+
       tbody.innerHTML = '<tr><td colspan="8" class="loading">Loading users…</td></tr>';
+      if (rangeEl) rangeEl.textContent = '—';
+      if (prevBtn) prevBtn.disabled = true;
+      if (nextBtn) nextBtn.disabled = true;
+
       try {
-        const r = await fetchWithAuth(API + '/users');
+        var url = API + '/users?limit=' + limit + '&offset=' + userOffset;
+        const r = await fetchWithAuth(url);
         if (!r.ok) throw new Error(r.statusText);
         const users = await r.json();
+
+        if (prevBtn) prevBtn.disabled = userOffset === 0;
+        if (nextBtn) nextBtn.disabled = users.length < limit;
+        if (rangeEl) {
+          if (users.length === 0) rangeEl.textContent = userOffset === 0 ? 'No users' : 'No more users';
+          else rangeEl.textContent = 'Showing ' + (userOffset + 1) + '–' + (userOffset + users.length);
+        }
+
         if (users.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="empty">No users yet. Create one above.</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="8" class="empty">' + (userOffset === 0 ? 'No users yet. Create one above.' : 'No more users on this page.') + '</td></tr>';
           return;
         }
         tbody.innerHTML = users.map(u => `
@@ -363,6 +482,15 @@
         tbody.innerHTML = '<tr><td colspan="8" class="empty" style="color: var(--danger);">Failed to load: ' + escapeHtml(e.message) + '</td></tr>';
       }
     }
+
+    (function initPagination() {
+      var limitEl = document.getElementById('user-limit');
+      var prevBtn = document.getElementById('user-prev');
+      var nextBtn = document.getElementById('user-next');
+      if (limitEl) limitEl.addEventListener('change', function() { userOffset = 0; loadUsers(); });
+      if (prevBtn) prevBtn.addEventListener('click', function() { userOffset = Math.max(0, userOffset - (parseInt(document.getElementById('user-limit').value, 10) || 20)); loadUsers(); });
+      if (nextBtn) nextBtn.addEventListener('click', function() { userOffset += parseInt(document.getElementById('user-limit').value, 10) || 20; loadUsers(); });
+    })();
 
     function escapeHtml(s) {
       if (s == null) return '';
