@@ -138,30 +138,45 @@ def send_jump_test_link(
         my_tests_href = _href_escape(my_tests_url)
         dashboard_text = "\n\nView all your tests:\n" + my_tests_url + "\n"
         dashboard_html = f"""
-    <p style="margin:20px 0 0 0;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-        <tr><td style="border-radius:8px; border:2px solid #4f46e5;">
-          <a href="{my_tests_href}" target="_blank" rel="noopener" style="display:inline-block; padding:10px 24px; color:#4f46e5; text-decoration:none; font-weight:600;">View all my tests</a>
-        </td></tr>
-      </table>
-    </p>"""
+      <p style="margin:16px 0 0 0; text-align:center;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin:0 auto;">
+          <tr>
+            <td style="border-radius:8px; border:2px solid #4f46e5;">
+              <a href="{my_tests_href}" target="_blank" rel="noopener" style="display:inline-block; padding:10px 24px; color:#4f46e5; text-decoration:none; font-weight:600; font-size:15px;">View all my tests</a>
+            </td>
+          </tr>
+        </table>
+      </p>"""
 
     text = body or ("View your jump test result here:\n\n" + viewer_url + dashboard_text)
     html = f"""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin:0; font-family: system-ui, sans-serif; background:#f4f4f5; padding:24px;">
-  <div style="max-width:480px; margin:0 auto; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,0.08); padding:28px;">
-    <h2 style="margin:0 0 16px 0; color:#111;">Your jump test result</h2>
-    <p style="margin:0 0 24px 0; color:#374151; line-height:1.6;">View your result and metrics using the link below.</p>
-    <p style="margin:0;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
-        <tr><td style="border-radius:8px; background-color:#4f46e5;">
-          <a href="{viewer_href}" target="_blank" rel="noopener" style="display:inline-block; padding:12px 24px; color:#fff; text-decoration:none; font-weight:600;">View result</a>
-        </td></tr>
-      </table>
-    </p>{dashboard_html}
-    <p style="margin:16px 0 0 0; font-size:14px; color:#6b7280; word-break:break-all;"><a href="{viewer_href}" target="_blank" rel="noopener" style="color:#4f46e5; text-decoration:underline;">{_html_escape(viewer_url)}</a></p>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your jump test result</title>
+</head>
+<body style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5; padding: 24px;">
+  <div style="max-width: 520px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
+    <div style="background: #4f46e5; padding: 32px 24px; text-align: center;">
+      <h1 style="margin: 0; color: #ffffff; font-size: 1.5rem; font-weight: 600;">Your jump test result</h1>
+    </div>
+    <div style="padding: 28px 24px;">
+      <p style="margin: 0 0 24px 0; color: #374151; font-size: 16px; line-height: 1.6;">Your jump test has been analyzed. View your detailed results and performance metrics using the button below.</p>
+      <p style="margin: 0 0 8px 0; text-align: center;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td style="border-radius: 8px; background-color: #4f46e5;">
+              <a href="{viewer_href}" target="_blank" rel="noopener" style="display: inline-block; padding: 14px 28px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">View result</a>
+            </td>
+          </tr>
+        </table>
+      </p>{dashboard_html}
+    </div>
+    <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0 0 6px 0; color: #9ca3af; font-size: 12px;">If the button above does not work, copy and paste this link into your browser:</p>
+      <p style="margin: 0; word-break: break-all;"><a href="{viewer_href}" target="_blank" rel="noopener" style="color: #4f46e5; font-size: 12px; text-decoration: underline;">{_html_escape(viewer_url)}</a></p>
+    </div>
   </div>
 </body>
 </html>"""
