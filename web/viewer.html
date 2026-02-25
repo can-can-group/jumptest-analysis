@@ -407,6 +407,10 @@
     <h1>Force Plate — Phase & Key Point Viewer</h1>
     <p class="subtitle" id="subtitle">Jump test results.</p>
 
+    <div id="backToMyTestsBar" class="no-print" style="display:none; margin-bottom: 1rem;">
+      <a id="backToMyTestsBtn" style="display:inline-flex; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); text-decoration:none; color:var(--text); font-size:0.9rem; cursor:pointer;">← My Tests</a>
+    </div>
+
     <div id="standaloneToolbar" class="toolbar no-print" style="margin-bottom: 1rem;">
       <label>Load visualization JSON
         <input type="file" id="fileInputViz" accept=".json">
@@ -587,7 +591,7 @@
 
     function renderMeta(data) {
       const g = document.getElementById('metaGrid');
-      const ad = (typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : null;
+      const ad = data.athlete_details || ((typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : null);
       const firstName = ad && ad.first_name != null ? ad.first_name : (ad ? '—' : (data.athlete_id || '—'));
       const lastName = ad && ad.last_name != null ? ad.last_name : '—';
       const gender = ad && ad.gender != null ? ad.gender : '—';
@@ -704,8 +708,10 @@
       const phases = getPhasesForDisplay(data);
       const keyPoints = getKeyPointsForDisplay(data);
       const metricsObj = getMetricsForDisplay(data);
+      const ad2 = data.athlete_details || null;
+      const athleteLabel = ad2 && ad2.first_name ? [ad2.first_name, ad2.last_name].filter(Boolean).join(' ') : (data.athlete_id || '');
       const meta = [
-        data.athlete_id ? `Athlete: ${data.athlete_id}` : '',
+        athleteLabel ? `Athlete: ${athleteLabel}` : '',
         data.bodyweight_N != null ? `BW: ${formatVal(data.bodyweight_N)} N` : ''
       ].filter(Boolean).join(' · ');
       let phasesHtml = '';
@@ -1475,6 +1481,20 @@
       runViewerLoader();
     }
 
+    (function initBackToMyTests() {
+      var params = new URLSearchParams(window.location.search);
+      var uid = params.get('user_id');
+      if (!uid) return;
+      var bar = document.getElementById('backToMyTestsBar');
+      var btn = document.getElementById('backToMyTestsBtn');
+      if (!bar || !btn) return;
+      var container = document.getElementById('viewerContainer') || document.querySelector('[data-api-base]');
+      var apiBase = container ? container.getAttribute('data-api-base') : '';
+      var basePath = apiBase ? apiBase.replace(/\/jump-tests$/, '') : '';
+      btn.href = basePath + '/my-tests?user_id=' + encodeURIComponent(uid);
+      bar.style.display = 'block';
+    })();
+
     (function initCompare() {
       var overlay = document.getElementById('compareModalOverlay');
       var listEl = document.getElementById('compareModalList');
@@ -1675,7 +1695,7 @@
       var emailSendBtn = document.getElementById('emailSendBtn');
       if (emailBtn && emailModalOverlay) {
         emailBtn.addEventListener('click', function() {
-          var details = (typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : {};
+          var details = (primaryData && primaryData.athlete_details) || ((typeof window !== 'undefined' && window.ATHLETE_DETAILS) ? window.ATHLETE_DETAILS : {});
           if (emailTo) emailTo.value = details.email || '';
           if (emailMsg) { emailMsg.textContent = ''; emailMsg.className = 'email-msg'; }
           if (emailIncludePdf) emailIncludePdf.checked = false;

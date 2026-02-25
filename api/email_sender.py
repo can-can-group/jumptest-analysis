@@ -114,9 +114,11 @@ def send_jump_test_link(
     test_id: str,
     subject: Optional[str] = None,
     body: Optional[str] = None,
+    user_id: Optional[str] = None,
 ) -> Tuple[bool, Optional[str]]:
     """
     Send an email with a link to view the jump test.
+    If user_id is provided, includes a secondary link to the user's test dashboard.
     Returns (True, None) on success, (False, error_message) on failure or if not configured.
     """
     if not SMTP_HOST:
@@ -127,7 +129,24 @@ def send_jump_test_link(
     viewer_url = base + "/viewer?test_id=" + test_id
     viewer_href = _href_escape(viewer_url)
     subj = subject or "Your jump test result"
-    text = body or ("View your jump test result here:\n\n" + viewer_url + "\n")
+
+    # Build dashboard link if user_id is available
+    dashboard_text = ""
+    dashboard_html = ""
+    if user_id:
+        my_tests_url = base + "/my-tests?user_id=" + user_id
+        my_tests_href = _href_escape(my_tests_url)
+        dashboard_text = "\n\nView all your tests:\n" + my_tests_url + "\n"
+        dashboard_html = f"""
+    <p style="margin:20px 0 0 0;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0">
+        <tr><td style="border-radius:8px; border:2px solid #4f46e5;">
+          <a href="{my_tests_href}" target="_blank" rel="noopener" style="display:inline-block; padding:10px 24px; color:#4f46e5; text-decoration:none; font-weight:600;">View all my tests</a>
+        </td></tr>
+      </table>
+    </p>"""
+
+    text = body or ("View your jump test result here:\n\n" + viewer_url + dashboard_text)
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -141,7 +160,7 @@ def send_jump_test_link(
           <a href="{viewer_href}" target="_blank" rel="noopener" style="display:inline-block; padding:12px 24px; color:#fff; text-decoration:none; font-weight:600;">View result</a>
         </td></tr>
       </table>
-    </p>
+    </p>{dashboard_html}
     <p style="margin:16px 0 0 0; font-size:14px; color:#6b7280; word-break:break-all;"><a href="{viewer_href}" target="_blank" rel="noopener" style="color:#4f46e5; text-decoration:underline;">{_html_escape(viewer_url)}</a></p>
   </div>
 </body>

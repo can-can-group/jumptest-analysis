@@ -89,10 +89,29 @@ def get_jump_test_viz(test_id: str):
         oid = ObjectId(test_id)
     except Exception:
         raise HTTPException(status_code=404, detail="Jump test not found")
-    doc = jump_tests_collection().find_one({"_id": oid}, projection={"result": 1})
+    doc = jump_tests_collection().find_one(
+        {"_id": oid}, projection={"result": 1, "user_id": 1}
+    )
     if not doc:
         raise HTTPException(status_code=404, detail="Jump test not found")
-    return JSONResponse(content=doc["result"])
+    result = doc["result"]
+    uid = doc.get("user_id")
+    if uid:
+        try:
+            user = users_collection().find_one(
+                {"_id": ObjectId(uid)},
+                projection={"name": 1, "last_name": 1, "gender": 1, "email": 1},
+            )
+        except Exception:
+            user = None
+        if user:
+            result["athlete_details"] = {
+                "first_name": user.get("name"),
+                "last_name": user.get("last_name"),
+                "gender": user.get("gender"),
+                "email": user.get("email"),
+            }
+    return JSONResponse(content=result)
 
 
 @router.get("", response_model=JumpTestListResponse)
@@ -175,7 +194,7 @@ def send_jump_test_link_email(test_id: str, body: Optional[SendLinkBody] = Body(
     if not to_email:
         raise HTTPException(status_code=400, detail="No email specified and jump test has no linked user with email")
 
-    ok, err_msg = send_jump_test_link(to_email, test_id)
+    ok, err_msg = send_jump_test_link(to_email, test_id, user_id=doc.get("user_id"))
     if not ok:
         raise HTTPException(status_code=503, detail=err_msg or "Failed to send email")
     return {"sent": True}

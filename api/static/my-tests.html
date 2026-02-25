@@ -80,7 +80,7 @@
             if (jumpHeight != null) meta += ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m';
             return '<div class="card">' +
               '<div class="card-info"><strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') + '</div>' +
-              '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '">View</a>' +
+              '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '&user_id=' + encodeURIComponent(userId) + '">View</a>' +
               '</div>';
           }).join('') + '</div>';
         })
