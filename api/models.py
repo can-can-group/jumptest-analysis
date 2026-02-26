@@ -37,6 +37,7 @@ class UserResponse(BaseModel):
     student_number: Optional[str] = None
     gender: Optional[str] = None
     appointment_at: Optional[datetime] = None
+    test_count: int = 0
     created_at: datetime
     updated_at: datetime
 
