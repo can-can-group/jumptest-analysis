@@ -15,6 +15,7 @@ class UserCreate(BaseModel):
     phone_number: Optional[str] = None
     student_number: Optional[str] = None
     gender: Optional[str] = None
+    appointment_at: Optional[datetime] = None
 
 
 class UserUpdate(BaseModel):
@@ -24,6 +25,7 @@ class UserUpdate(BaseModel):
     phone_number: Optional[str] = None
     student_number: Optional[str] = None
     gender: Optional[str] = None
+    appointment_at: Optional[datetime] = None
 
 
 class UserResponse(BaseModel):
@@ -34,6 +36,7 @@ class UserResponse(BaseModel):
     phone_number: Optional[str] = None
     student_number: Optional[str] = None
     gender: Optional[str] = None
+    appointment_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

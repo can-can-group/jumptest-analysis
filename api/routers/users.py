@@ -23,6 +23,7 @@ def _user_to_response(doc: dict) -> UserResponse:
         phone_number=doc.get("phone_number"),
         student_number=doc.get("student_number"),
         gender=doc.get("gender"),
+        appointment_at=doc.get("appointment_at"),
         created_at=doc["created_at"],
         updated_at=doc["updated_at"],
     )
@@ -39,6 +40,7 @@ def create_user(body: UserCreate, _: str = Depends(require_admin)):
         "phone_number": body.phone_number,
         "student_number": body.student_number,
         "gender": body.gender,
+        "appointment_at": body.appointment_at,
         "created_at": now,
         "updated_at": now,
     }
@@ -90,6 +92,8 @@ def update_user(user_id: str, body: UserUpdate, _: str = Depends(require_admin))
         update["student_number"] = body.student_number
     if body.gender is not None:
         update["gender"] = body.gender
+    if body.appointment_at is not None:
+        update["appointment_at"] = body.appointment_at
     if len(update) == 1:
         return _user_to_response(doc)
     try:
