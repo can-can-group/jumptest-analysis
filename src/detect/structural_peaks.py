@@ -423,15 +423,15 @@ def detect_peaks_smoothed_then_match(
     """
     start = min_force_index
     end = takeoff_index
-    if start >= end or end >= len(force):
+    if start >= end or end > len(force):
         return {"P1_index": None, "P2_index": None}
-
-    seg_orig = force[start : end + 1].astype(float)
+    # Segment [min_force, take_off) exclusive so no peak can be at or after take_off
+    seg_orig = force[start : end].astype(float)
     n = len(seg_orig)
     if n == 0:
         return {"P1_index": None, "P2_index": None}
     if n == 1:
-        return {"P1_index": int(start), "P2_index": None}
+        return {"P1_index": None, "P2_index": None}
 
     min_sep_samples = max(1, int(sample_rate * min_p1_p2_separation_ms / 1000.0))
     smooth_win = max(3, int(sample_rate * smooth_window_ms / 1000.0) | 1)

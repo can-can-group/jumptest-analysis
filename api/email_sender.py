@@ -181,3 +181,127 @@ def send_jump_test_link(
 </body>
 </html>"""
     return _send_email(to_email, subj, text, html)
+
+
+def send_results_ready_email(
+    to_email: str,
+    user_id: str,
+    has_bad_data: bool = False,
+    bad_data_message: Optional[str] = None,
+    name: Optional[str] = None,
+    last_name: Optional[str] = None,
+) -> Tuple[bool, Optional[str]]:
+    """
+    Send an email when CMJ results are ready: formal, bilingual (English then Turkish).
+    If has_bad_data is True, includes a line about quality issues in both languages.
+    Returns (True, None) on success, (False, error_message) otherwise.
+    """
+    if not SMTP_HOST:
+        return False, "SMTP not configured"
+    if not to_email:
+        return False, "No recipient email"
+    base = _base_url()
+    my_tests_url = base + "/my-tests?user_id=" + user_id
+    my_tests_href = _href_escape(my_tests_url)
+
+    display_name_en = "Participant"
+    if name or last_name:
+        display_name_en = " ".join(x for x in ((name or "").strip(), (last_name or "").strip()) if x)
+    display_name_en = _html_escape(display_name_en) or "Participant"
+    display_name_tr = display_name_en  # same for Turkish greeting
+
+    bad_line_en = ""
+    bad_line_tr = ""
+    if has_bad_data:
+        bad_line_en = (
+            bad_data_message
+            or "Some of your tests had quality issues; details are visible in your dashboard."
+        ).strip()
+        bad_line_tr = "Bazı testlerinizde kalite sorunları tespit edilmiştir; ayrıntılar panonuzda görüntülenebilir."
+
+    subject = "Your CMJ test results are ready / CMJ test sonuçlarınız hazır"
+
+    # Plain text: English then Turkish
+    text = f"""Dear {display_name_en},
+
+We are pleased to inform you that your Counter-Movement Jump (CMJ) test results have been processed and are now ready for your review.
+"""
+    if bad_line_en:
+        text += f"\n{bad_line_en}\n\n"
+    text += f"""Thank you for participating in our tests. You may view your results and performance metrics using the link below.
+
+{my_tests_url}
+
+---
+Türkçe
+---
+
+Sayın {display_name_tr},
+
+Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazır olduğunu bildirmekten memnuniyet duyarız.
+"""
+    if bad_line_tr:
+        text += f"\n{bad_line_tr}\n\n"
+    text += f"""Testlere katıldığınız için teşekkür ederiz. Sonuçlarınızı aşağıdaki bağlantıyı kullanarak görüntüleyebilirsiniz.
+
+{my_tests_url}
+"""
+
+    bad_html_en = ""
+    bad_html_tr = ""
+    if bad_line_en:
+        bad_html_en = f'<p style="margin:12px 0 0 0; color:#b45309; font-size:15px;">{_html_escape(bad_line_en)}</p>'
+    if bad_line_tr:
+        bad_html_tr = f'<p style="margin:8px 0 0 0; color:#b45309; font-size:14px;">{_html_escape(bad_line_tr)}</p>'
+
+    html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Your CMJ test results are ready</title>
+</head>
+<body style="margin:0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5; padding: 24px;">
+  <div style="max-width: 560px; margin: 0 auto; background: #ffffff; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;">
+    <div style="background: #4f46e5; padding: 32px 24px; text-align: center;">
+      <h1 style="margin: 0; color: #ffffff; font-size: 1.35rem; font-weight: 600;">Your CMJ test results are ready</h1>
+      <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 0.95rem;">CMJ test sonuçlarınız hazır</p>
+    </div>
+    <div style="padding: 28px 24px;">
+      <p style="margin: 0 0 8px 0; color: #374151; font-size: 16px; line-height: 1.6;"><strong>English</strong></p>
+      <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">Dear {display_name_en},</p>
+      <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">We are pleased to inform you that your Counter-Movement Jump (CMJ) test results have been processed and are now ready for your review.</p>
+      {bad_html_en}
+      <p style="margin: 16px 0 0 0; color: #374151; font-size: 16px; line-height: 1.6;">Thank you for participating in our tests. You may view your results and performance metrics using the button below.</p>
+      <p style="margin: 20px 0 8px 0; text-align: center;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td style="border-radius: 8px; background-color: #4f46e5;">
+              <a href="{my_tests_href}" target="_blank" rel="noopener" style="display: inline-block; padding: 14px 28px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">View my results</a>
+            </td>
+          </tr>
+        </table>
+      </p>
+      <p style="margin: 28px 0 8px 0; padding-top: 20px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 14px;"><strong>Türkçe</strong></p>
+      <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">Sayın {display_name_tr},</p>
+      <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazır olduğunu bildirmekten memnuniyet duyarız.</p>
+      {bad_html_tr}
+      <p style="margin: 16px 0 0 0; color: #374151; font-size: 16px; line-height: 1.6;">Testlere katıldığınız için teşekkür ederiz. Sonuçlarınızı aşağıdaki bağlantıyı kullanarak görüntüleyebilirsiniz.</p>
+      <p style="margin: 16px 0 0 0; text-align: center;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
+          <tr>
+            <td style="border-radius: 8px; background-color: #4f46e5;">
+              <a href="{my_tests_href}" target="_blank" rel="noopener" style="display: inline-block; padding: 14px 28px; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 16px;">Sonuçlarımı görüntüle</a>
+            </td>
+          </tr>
+        </table>
+      </p>
+    </div>
+    <div style="padding: 16px 24px; background: #f9fafb; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; color: #9ca3af; font-size: 12px;">If the button does not work, use this link: / Bağlantı çalışmazsa bu linki kullanın:</p>
+      <p style="margin: 8px 0 0 0; word-break: break-all;"><a href="{my_tests_href}" target="_blank" rel="noopener" style="color: #4f46e5; font-size: 12px; text-decoration: underline;">{_html_escape(my_tests_url)}</a></p>
+    </div>
+  </div>
+</body>
+</html>"""
+    return _send_email(to_email, subject, text, html)

@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from api.config import BASE_PATH
 from api.db import init_db
-from api.routers import auth, jump_tests, users
+from api.routers import auth, jump_tests, review, users
 
 
 @asynccontextmanager
@@ -38,6 +38,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(jump_tests.router)
+app.include_router(review.router)
 
 
 @app.get("/health")

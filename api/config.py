@@ -29,6 +29,9 @@ ADMIN_SECRET = _str(os.environ.get("ADMIN_SECRET"))
 JWT_SECRET = _str(os.environ.get("JWT_SECRET") or "change-me-in-production")
 JWT_EXPIRE_MINUTES = int(os.environ.get("JWT_EXPIRE_MINUTES", "10080"))  # default: 7 days
 
+# Optional low-pass filter (Hz) for force data before detection. 0 = disabled. Reduces noise.
+FORCE_FILTER_CUTOFF_HZ = int(os.environ.get("FORCE_FILTER_CUTOFF_HZ", "0"))
+
 # Email (SMTP) for sending jump test result links
 SMTP_HOST = _str(os.environ.get("SMTP_HOST"))
 SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))

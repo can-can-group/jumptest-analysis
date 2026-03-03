@@ -147,6 +147,7 @@ def compute_metrics(
 
     # P1/P2 from min_force to take_off: smooth for detection, then match indices to original force.
     # Naming is by time order: P1 = first peak in time, P2 = second peak in time (independent of value).
+    # Concentric peaks must be above unweighting dip (force > force[min_force]); P2 must not be too far from P1 (avoid landing peak).
     if min_force is not None and take_off is not None and min_force < take_off:
         cfg = DEFAULT_CONFIG
         result = detect_peaks_smoothed_then_match(
@@ -159,14 +160,36 @@ def compute_metrics(
         )
         idx_a = result.get("P1_index")
         idx_b = result.get("P2_index")
+        min_force_N = float(force[min_force])
+        # Peaks must be strictly before take_off and above bodyweight (no peak below BW line)
+        def in_range(idx: Optional[int]) -> bool:
+            return idx is not None and min_force < idx < take_off
+        def above_bodyweight(idx: Optional[int]) -> bool:
+            return idx is not None and idx < len(force) and float(force[idx]) > bodyweight
+        def above_min_force(idx: Optional[int]) -> bool:
+            return idx is not None and idx < len(force) and float(force[idx]) > min_force_N
+        if idx_a is not None and (not in_range(idx_a) or not above_bodyweight(idx_a) or not above_min_force(idx_a)):
+            idx_a = None
+        if idx_b is not None and (not in_range(idx_b) or not above_bodyweight(idx_b) or not above_min_force(idx_b)):
+            idx_b = None
+        if idx_a is not None and idx_b is not None and idx_a == idx_b:
+            idx_b = None
         # Order by time (index): first in time = P1, second in time = P2
         if idx_a is not None and idx_b is not None:
-            first_idx = min(idx_a, idx_b)
-            second_idx = max(idx_a, idx_b)
+            first_idx: Optional[int] = min(idx_a, idx_b)
+            second_idx: Optional[int] = max(idx_a, idx_b)
+            if second_idx <= first_idx or second_idx >= take_off:
+                second_idx = None
+            if first_idx >= take_off:
+                first_idx = None
+            # P2 too far from P1 is likely landing peak, not concentric
+            max_sep_samples = int(sr * (cfg.max_p1_p2_separation_ms / 1000.0))
+            if second_idx is not None and (second_idx - first_idx) > max_sep_samples:
+                second_idx = None
             out["p1_peak_index"] = first_idx
             out["p2_peak_index"] = second_idx
-            out["p1_peak_N"] = float(force[first_idx])
-            out["p2_peak_N"] = float(force[second_idx])
+            out["p1_peak_N"] = float(force[first_idx]) if first_idx is not None else None
+            out["p2_peak_N"] = float(force[second_idx]) if second_idx is not None else None
         elif idx_a is not None:
             out["p1_peak_index"] = idx_a
             out["p2_peak_index"] = None

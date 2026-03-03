@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review statistics — validation overview</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #1a1a1e; color: #e4e4e7; min-height: 100vh; padding: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem 0; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .api-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .api-row label { font-size: 0.9rem; }
+    .api-row input { flex: 1; min-width: 14rem; padding: 0.4rem 0.6rem; background: #333; border: 1px solid #444; border-radius: 4px; color: #e4e4e7; }
+    .api-row button { padding: 0.5rem 1rem; background: #1e3a5f; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .api-row button:hover { background: #2563eb; }
+    .error { padding: 1rem; background: #451a1a; color: #fca5a5; border-radius: 8px; margin-bottom: 1rem; }
+    .section { margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1rem; margin: 0 0 0.5rem 0; color: #9ca3af; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #333; }
+    th { color: #9ca3af; font-weight: 600; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bad-table td { font-size: 0.85rem; }
+    .empty { color: #6b7280; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Review statistics</h1>
+  <p><a href="/">← List</a> · <a href="/web/review.html">Review</a></p>
+  <div class="api-row">
+    <label for="api-base">API base URL:</label>
+    <input type="text" id="api-base" placeholder="http://localhost:8000" />
+    <button type="button" id="btn-fetch">Fetch statistics</button>
+  </div>
+  <div class="error" id="error" style="display:none;"></div>
+  <div id="content" style="display:none;">
+    <div class="section">
+      <h2>Summary</h2>
+      <p>Total reviewed: <strong id="total-reviewed">0</strong></p>
+    </div>
+    <div class="section">
+      <h2>By verdict</h2>
+      <table>
+        <thead><tr><th>Verdict</th><th class="num">Count</th></tr></thead>
+        <tbody id="by-verdict"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>By test type</h2>
+      <table>
+        <thead><tr><th>Type</th><th class="num">Count</th></tr></thead>
+        <tbody id="by-type"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>By user</h2>
+      <table>
+        <thead><tr><th>User ID</th><th class="num">Correct</th><th class="num">Points wrong</th><th class="num">No detection</th><th class="num">Data bad</th><th class="num">Skip</th></tr></thead>
+        <tbody id="by-user"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Bad data tests (data_bad / points_wrong)</h2>
+      <table class="bad-table">
+        <thead><tr><th>Test ID</th><th>User ID</th><th>Verdict</th><th>Note</th></tr></thead>
+        <tbody id="bad-data"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+(function() {
+  function getApiBase() {
+    return (document.getElementById('api-base').value || '').trim().replace(/\/$/, '');
+  }
+  function showError(msg) {
+    var el = document.getElementById('error');
+    el.textContent = msg;
+    el.style.display = 'block';
+    document.getElementById('content').style.display = 'none';
+  }
+  function hideError() {
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  }
+  function fetchStats() {
+    var base = getApiBase();
+    if (!base) { showError('Enter API base URL (e.g. http://localhost:8000).'); return; }
+    document.getElementById('error').style.display = 'none';
+    fetch(base + '/review/statistics')
+      .then(function(r) {
+        if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+        return r.json();
+      })
+      .then(function(data) {
+        hideError();
+        document.getElementById('total-reviewed').textContent = data.total_reviewed || 0;
+        var byVerdict = data.by_verdict || {};
+        var verdictOrder = ['correct', 'points_wrong', 'no_detection', 'data_bad', 'skip'];
+        var tbody = document.getElementById('by-verdict');
+        tbody.innerHTML = '';
+        verdictOrder.forEach(function(v) {
+          if (byVerdict[v] != null) {
+            var tr = document.createElement('tr');
+            tr.innerHTML = '<td>' + v + '</td><td class="num">' + byVerdict[v] + '</td>';
+            tbody.appendChild(tr);
+          }
+        });
+        if (tbody.children.length === 0) tbody.innerHTML = '<tr><td colspan="2" class="empty">No data</td></tr>';
+        var byType = data.by_test_type || {};
+        var typeBody = document.getElementById('by-type');
+        typeBody.innerHTML = '';
+        for (var k in byType) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + k + '</td><td class="num">' + byType[k] + '</td>';
+          typeBody.appendChild(tr);
+        }
+        if (typeBody.children.length === 0) typeBody.innerHTML = '<tr><td colspan="2" class="empty">No data</td></tr>';
+        var byUser = data.by_user || {};
+        var userBody = document.getElementById('by-user');
+        userBody.innerHTML = '';
+        for (var uid in byUser) {
+          var row = byUser[uid];
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + uid + '</td><td class="num">' + (row.correct || 0) + '</td><td class="num">' + (row.points_wrong || 0) + '</td><td class="num">' + (row.no_detection || 0) + '</td><td class="num">' + (row.data_bad || 0) + '</td><td class="num">' + (row.skip || 0) + '</td>';
+          userBody.appendChild(tr);
+        }
+        if (userBody.children.length === 0) userBody.innerHTML = '<tr><td colspan="6" class="empty">No data</td></tr>';
+        var bad = data.bad_data_tests || [];
+        var badBody = document.getElementById('bad-data');
+        badBody.innerHTML = '';
+        bad.forEach(function(row) {
+          var tr = document.createElement('tr');
+          tr.innerHTML = '<td>' + (row.test_id || '') + '</td><td>' + (row.user_id || '') + '</td><td>' + (row.verdict || '') + '</td><td>' + (row.note != null ? row.note : '') + '</td>';
+          badBody.appendChild(tr);
+        });
+        if (badBody.children.length === 0) badBody.innerHTML = '<tr><td colspan="4" class="empty">None</td></tr>';
+      })
+      .catch(function(err) {
+        showError('Failed to load: ' + err.message + '. Make sure the API is running and CORS allows this origin.');
+      });
+  }
+  document.getElementById('btn-fetch').onclick = fetchStats;
+})();
+  </script>
+</body>
+</html>

@@ -7,7 +7,7 @@ from fastapi import APIRouter, Body, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from api.config import SMTP_HOST
+from api.config import FORCE_FILTER_CUTOFF_HZ, SMTP_HOST
 from api.db import jump_tests_collection, users_collection
 from api.email_sender import send_jump_test_link
 from api.models import JumpTestDetail, JumpTestListResponse, JumpTestSubmit, JumpTestSummary
@@ -32,6 +32,30 @@ def _make_serializable(obj: Any) -> Any:
     return obj
 
 
+# Minimum jump height (m) to consider a valid jump; below this = invalid_jump (user mistake / wrong test)
+MIN_JUMP_HEIGHT_M = 0.01
+
+
+def _quality_tag(metrics: Dict[str, Any], review_verdict: Optional[str]) -> Optional[str]:
+    """Compute quality_tag for list display: bad_data, wrong_detection, invalid_jump, correct, no_detection, skip."""
+    jump_m = (
+        metrics.get("jump_height_impulse_m")
+        or metrics.get("jump_height_flight_m")
+        or metrics.get("jump_height_m")
+    )
+    if jump_m is None or (isinstance(jump_m, (int, float)) and float(jump_m) < MIN_JUMP_HEIGHT_M):
+        return "invalid_jump"
+    if review_verdict == "data_bad":
+        return "bad_data"
+    if review_verdict == "points_wrong":
+        return "wrong_detection"
+    if review_verdict == "correct":
+        return "correct"
+    if review_verdict in ("no_detection", "skip"):
+        return review_verdict
+    return None
+
+
 @router.post("")
 def submit_jump_test(body: JumpTestSubmit):
     """
@@ -41,8 +65,9 @@ def submit_jump_test(body: JumpTestSubmit):
     from src.run_analysis import run_analysis
 
     payload = body.to_analysis_payload()
+    filter_hz = body.filter_cutoff_hz if body.filter_cutoff_hz is not None else FORCE_FILTER_CUTOFF_HZ
     try:
-        result = run_analysis(payload)
+        result = run_analysis(payload, filter_cutoff_hz=filter_hz)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -146,6 +171,8 @@ def list_jump_tests(
     items: List[JumpTestSummary] = []
     for d in cursor:
         metrics = (d.get("result") or {}).get("metrics") or {}
+        review_verdict = (d.get("review") or {}).get("verdict")
+        tag = _quality_tag(metrics, review_verdict)
         items.append(
             JumpTestSummary(
                 id=str(d["_id"]),
@@ -153,6 +180,7 @@ def list_jump_tests(
                 test_type=d["test_type"],
                 created_at=d["created_at"],
                 metrics=_make_serializable(metrics),
+                quality_tag=tag,
             )
         )
 

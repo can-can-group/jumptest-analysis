@@ -339,15 +339,20 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-## Run the Jump Test API (lightweight server)
+## Run the Jump Test API (main application)
 
 From the project root, with MongoDB running (e.g. `mongodb://localhost:27017`):
 
 ```bash
-export MONGODB_URI=mongodb://localhost:27017   # optional; default
-export MONGODB_DB=jumptest                     # optional; default
-PYTHONPATH=. .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+# Optional: set DB (defaults shown)
+export MONGODB_URI=mongodb://localhost:27017
+export MONGODB_DB=jumptest
+
+# Run the main API server
+PYTHONPATH=. python -m uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+Or with a venv: `PYTHONPATH=. .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000`
 
 - **OpenAPI docs:** http://localhost:8000/docs  
 - **Documentation (MkDocs):** Run `mkdocs build` in the project root, then open http://localhost:8000/documentation/  
@@ -400,6 +405,78 @@ PYTHONPATH=. python script/test_api_endpoints.py saved_raw_data/dj-data/sina_DJ_
 ```
 
 Or use a CMJ file: `saved_raw_data/cmj-data/saved3.json`. The script creates an admin (if needed), logs in, creates a user, submits the jump test from the JSON file, fetches the test and history, tries send-link, and prints the viewer and my-tests URLs.
+
+### Download jump tests from DB to local (read-only)
+
+To fetch all stored jump tests from MongoDB and save them as local JSON files:
+
+```bash
+PYTHONPATH=. python script/download_jump_tests_from_db.py
+```
+
+Saves each test to `downloaded_jump_tests/<test_id>.json` (override with `--output-dir`). Optional: `--limit N`, `--offset N`. A `manifest.json` in the output dir lists all downloaded test IDs and filenames.
+
+To separate files into subfolders by type (cmj, sj, dj):
+
+```bash
+PYTHONPATH=. python script/separate_jump_tests_by_type.py --dir downloaded_jump_tests
+```
+
+### Re-run improved algorithm and view results locally
+
+After downloading and separating tests, re-run the analysis (with optional low-pass filter) and open a local viewer:
+
+1. **Reanalyze** (reads `downloaded_jump_tests/cmj/`, `sj/`, `dj/`, writes `reanalyzed/`):
+
+   ```bash
+   PYTHONPATH=. python script/reanalyze_downloaded.py --filter-hz 50
+   ```
+
+   Optional: `--input-dir`, `--output-dir`, `--limit`.
+
+2. **Serve and view** (no API or DB; serves list + viewer):
+
+   ```bash
+   PYTHONPATH=. python script/serve_local_viewer.py
+   ```
+
+   Open http://localhost:8766/ for the list of reanalyzed tests; click **View** to see each result (force curve, phases, key points, metrics).
+
+### Update CMJ results in the database
+
+To push reanalyzed CMJ results from `reanalyzed/cmj/*.json` into MongoDB (e.g. after algorithm fixes), use the update script. Only the `result` field is updated; `review` (verdict, note) is preserved so the **my-tests** page continues to show the correct quality tags (Correct, Bad data, Wrong detection, Invalid / No jump).
+
+```bash
+# Test with one user first, then bulk
+PYTHONPATH=. python script/update_cmj_results_in_db.py --user-id 699c4c518e59d198a5550848 --send-emails
+PYTHONPATH=. python script/update_cmj_results_in_db.py --all --send-emails
+```
+
+Options: `--reanalyzed-dir`, `--dry-run`, `--send-emails`. Requires exactly one of `--user-id <id>` or `--all`.
+
+### Export detection manifest (indices, times, values, order check)
+
+To verify that detection order and values are correct across all tests, run the manifest script. It re-runs analysis on every downloaded test and writes a single manifest with **index**, **time_s**, and **value_N** for each key point (onset, min_force, P1, P2, take_off, landing), plus an **order_ok** check (onset &lt; min_force &lt; P1 &lt; P2 &lt; take_off &lt; landing).
+
+```bash
+PYTHONPATH=. python script/export_detection_manifest.py --filter-hz 10
+```
+
+- **Input:** `downloaded_jump_tests/` (cmj/, sj/, dj/).
+- **Output:** `output/detection_manifest.json` (full detail per test) and `output/detection_manifest.csv` (one row per test; easy to sort/filter in a spreadsheet).
+- Options: `--input-dir`, `--output-dir`, `--filter-hz`, `--limit`, `--types cmj,sj,dj`.
+
+Use the CSV to sort by `order_ok`, `key_points_count`, or by any index/time column to spot outliers or wrong ordering.
+
+### Batch debug stored jump tests (read-only)
+
+To re-run analysis on all stored tests locally and get a report (no DB writes):
+
+```bash
+PYTHONPATH=. python script/debug_jump_tests_batch.py --output debug_report.csv
+```
+
+Optional: `--limit 100`, `--offset 0`, `--filter-hz 50` (compare with filtered run and report fixed_by_filter), `--export-dir ./debug_exports/` (write per-test result JSON to disk). Uses `MONGODB_URI` and `MONGODB_DB` from `.env`.
 
 ### Run with Docker
 

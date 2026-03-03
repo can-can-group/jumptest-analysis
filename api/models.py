@@ -59,6 +59,7 @@ class JumpTestSubmit(BaseModel):
     name: Optional[str] = None
     started_at: Optional[str] = None
     user_id: Optional[str] = None
+    filter_cutoff_hz: Optional[int] = Field(None, description="Low-pass filter cutoff in Hz (overrides env); 0 = no filter")
 
     @model_validator(mode="after")
     def require_force_or_total_force(self) -> "JumpTestSubmit":
@@ -68,7 +69,7 @@ class JumpTestSubmit(BaseModel):
 
     def to_analysis_payload(self) -> Dict[str, Any]:
         """Convert to dict for run_analysis(); use force or total_force; default athlete_id from user_id or 'unknown'."""
-        d = self.model_dump(exclude={"user_id"}, exclude_none=True)
+        d = self.model_dump(exclude={"user_id", "filter_cutoff_hz"}, exclude_none=True)
         if "athlete_id" not in d or d.get("athlete_id") is None:
             d["athlete_id"] = self.user_id or "unknown"
         if "total_force" in d and "force" not in d:
@@ -103,6 +104,10 @@ class JumpTestSummary(BaseModel):
     test_type: str
     created_at: datetime
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Key metrics from result")
+    quality_tag: Optional[str] = Field(
+        None,
+        description="Review/quality: correct, bad_data, wrong_detection, invalid_jump, no_detection, skip, or null",
+    )
 
 
 class JumpTestListResponse(BaseModel):
@@ -110,3 +115,38 @@ class JumpTestListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+# ----- Review (validation) -----
+
+VALID_VERDICTS = ("correct", "points_wrong", "no_detection", "data_bad", "skip")
+
+
+class ReviewItem(BaseModel):
+    """Single review verdict for POST /review."""
+
+    test_id: str
+    verdict: str  # correct | points_wrong | no_detection | data_bad | skip
+    note: Optional[str] = None
+
+
+class ReviewSubmit(BaseModel):
+    """Request body for POST /review: list of verdicts to store."""
+
+    verdicts: List[ReviewItem]
+
+
+class ReviewStatisticsResponse(BaseModel):
+    """Response for GET /review/statistics."""
+
+    total_reviewed: int
+    by_verdict: Dict[str, int]
+    by_test_type: Dict[str, int]
+    by_user: Dict[str, Dict[str, int]]  # user_id -> { verdict: count }
+    bad_data_tests: List[Dict[str, Any]]  # test_id, user_id, verdict, note
+
+
+class ReviewPublishBody(BaseModel):
+    """Optional body for POST /review/publish."""
+
+    test_ids: Optional[List[str]] = None  # if None, publish all reviewed

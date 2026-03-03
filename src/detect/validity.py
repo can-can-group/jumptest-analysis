@@ -3,7 +3,7 @@ from typing import Optional
 
 from ..data.types import CMJTrial, CMJEvents, TrialValidity
 
-FLIGHT_TIME_MIN_S = 0.1
+FLIGHT_TIME_MIN_S = 0.01   # 10 ms; adaptive detection can yield short flight segments
 FLIGHT_TIME_MAX_S = 2.0
 
 
@@ -24,15 +24,21 @@ def validate_trial(
     n = len(force)
     sr = trial.sample_rate
 
-    # Count descending crossings of take-off threshold
+    # Count descending crossings of take-off threshold (used when detection is crossing-based)
     crossings = 0
     for i in range(1, n):
         if force[i - 1] >= take_off_threshold and force[i] < take_off_threshold:
             crossings += 1
     if crossings > 1:
         flags.append("multiple_takeoff")
+    # Only flag no_takeoff_crossing if we have take_off but no landing or implausible flight (adaptive detection can have 0 crossings)
     if crossings == 0 and events.take_off is not None:
-        flags.append("no_takeoff_crossing")
+        if events.landing is None:
+            flags.append("no_takeoff_crossing")
+        else:
+            t_flight = (events.landing - events.take_off) / sr
+            if t_flight < flight_time_min_s or t_flight > flight_time_max_s:
+                flags.append("no_takeoff_crossing")
 
     # Flight duration
     if events.take_off is not None and events.landing is not None:

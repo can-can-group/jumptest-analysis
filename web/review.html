@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review CMJ tests — supervise detection quality</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #1a1a1e; color: #e4e4e7; min-height: 100vh; display: flex; flex-direction: column; }
+    .topbar {
+      display: flex; align-items: center; gap: 1rem; padding: 0.6rem 1rem; background: #252529; border-bottom: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    .topbar a { color: #60a5fa; text-decoration: none; }
+    .topbar a:hover { text-decoration: underline; }
+    .nav-info { font-weight: 600; min-width: 120px; }
+    .nav-btns { display: flex; gap: 0.5rem; }
+    .nav-btns button { padding: 0.4rem 0.8rem; cursor: pointer; border-radius: 6px; border: 1px solid #444; background: #333; color: #e4e4e7; font-size: 0.9rem; }
+    .nav-btns button:hover { background: #404; }
+    .nav-btns button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #btn-jump { padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+    .filter-type { display: flex; align-items: center; gap: 0.5rem; }
+    .filter-type select { padding: 0.35rem 0.5rem; border-radius: 4px; background: #333; color: #e4e4e7; border: 1px solid #444; }
+    .chart-area { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0.5rem; }
+    .chart-area iframe { flex: 1; width: 100%; border: 1px solid #333; border-radius: 8px; background: #111; min-height: 400px; }
+    .verdict-bar {
+      display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; background: #252529; border-top: 1px solid #333;
+      flex-wrap: wrap;
+    }
+    .verdict-bar .label { font-weight: 600; font-size: 0.9rem; }
+    .verdict-bar button {
+      padding: 0.5rem 1rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 500; font-size: 0.9rem;
+    }
+    .verdict-bar button[data-verdict="correct"] { background: #166534; color: #fff; }
+    .verdict-bar button[data-verdict="points_wrong"] { background: #b45309; color: #fff; }
+    .verdict-bar button[data-verdict="no_detection"] { background: #1e40af; color: #fff; }
+    .verdict-bar button[data-verdict="data_bad"] { background: #991b1b; color: #fff; }
+    .verdict-bar button[data-verdict="skip"] { background: #374151; color: #fff; }
+    .verdict-bar button:hover { filter: brightness(1.1); }
+    .verdict-bar button.active { box-shadow: 0 0 0 2px #fff; }
+    .current-verdict { font-size: 0.85rem; color: #9ca3af; }
+    .export-row { margin-top: 0.5rem; }
+    .export-row button { padding: 0.4rem 0.8rem; background: #1e3a5f; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .export-row button:hover { background: #2563eb; }
+    .export-row button.success { background: #166534; }
+    .export-row button.success:hover { background: #15803d; }
+    .note-row { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .note-row label { font-size: 0.85rem; min-width: 3rem; }
+    .note-row input { flex: 1; min-width: 12rem; padding: 0.4rem 0.6rem; background: #333; border: 1px solid #444; border-radius: 4px; color: #e4e4e7; font-size: 0.9rem; }
+    .api-row { margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .api-row label { font-size: 0.85rem; }
+    .api-row input { flex: 1; min-width: 14rem; padding: 0.35rem 0.6rem; background: #333; border: 1px solid #444; border-radius: 4px; color: #e4e4e7; font-size: 0.85rem; }
+    .api-row input::placeholder { color: #6b7280; }
+    .shortcuts { font-size: 0.75rem; color: #6b7280; margin-left: auto; }
+    .loading { padding: 2rem; text-align: center; color: #9ca3af; }
+    .error { padding: 1rem; background: #451a1a; color: #fca5a5; border-radius: 8px; margin: 1rem; }
+    .save-status { font-size: 0.85rem; margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a href="/">← List</a>
+    <span class="nav-info" id="nav-info">— / —</span>
+    <div class="nav-btns">
+      <button type="button" id="btn-prev">← Prev</button>
+      <button type="button" id="btn-next">Next →</button>
+      <span style="display:inline-flex;align-items:center;gap:0.35rem;">
+        <label for="jump-to" style="font-size:0.85rem;">Go to</label>
+        <input type="number" id="jump-to" min="1" style="width:4rem;padding:0.35rem;background:#333;border:1px solid #444;border-radius:4px;color:#e4e4e7;" placeholder="1">
+        <button type="button" id="btn-jump">Go</button>
+      </span>
+    </div>
+    <div class="filter-type">
+      <label for="type-filter">Type:</label>
+      <select id="type-filter">
+        <option value="cmj">CMJ</option>
+        <option value="sj">SJ</option>
+        <option value="dj">DJ</option>
+        <option value="all">All</option>
+      </select>
+    </div>
+    <span class="shortcuts">Keys: ← → prev/next · 1–5 verdict</span>
+  </div>
+
+  <div class="chart-area">
+    <div class="loading" id="loading">Loading manifest…</div>
+    <iframe id="viewer-frame" style="display:none" title="Test chart"></iframe>
+  </div>
+
+  <div class="verdict-bar" id="verdict-bar" style="display:none">
+    <span class="label">Verdict:</span>
+    <button type="button" data-verdict="correct">1 Correct</button>
+    <button type="button" data-verdict="points_wrong">2 Points wrong</button>
+    <button type="button" data-verdict="no_detection">3 No detection (data OK)</button>
+    <button type="button" data-verdict="data_bad">4 Data bad</button>
+    <button type="button" data-verdict="skip">5 Skip</button>
+    <span class="current-verdict" id="current-verdict"></span>
+    <div class="note-row">
+      <label for="note-input">Note:</label>
+      <input type="text" id="note-input" placeholder="Optional note (e.g. for data_bad)" />
+    </div>
+    <div class="export-row">
+      <button type="button" id="btn-export">Export review results (JSON)</button>
+      <span class="api-row" style="margin-left:1rem;">
+        <label for="api-base">API base:</label>
+        <input type="text" id="api-base" placeholder="https://localhost:8000 (optional)" />
+        <button type="button" id="btn-save-server">Save to server</button>
+        <button type="button" id="btn-load-server">Load from server</button>
+        <span class="save-status" id="save-status"></span>
+      </span>
+    </div>
+  </div>
+
+  <script>
+(function() {
+  var STORAGE_KEY = 'jumptest_review';
+  var VERDICT_LABELS = { correct: 'Correct', points_wrong: 'Points wrong', no_detection: 'No detection (data OK)', data_bad: 'Data bad', skip: 'Skip' };
+  var tests = [];
+  var filtered = [];
+  var index = 0;
+  var verdicts = {};
+  var notes = {};
+
+  function loadVerdicts() {
+    try {
+      var s = localStorage.getItem(STORAGE_KEY);
+      if (s) {
+        var data = JSON.parse(s);
+        verdicts = data.verdicts != null ? data.verdicts : (data && typeof data === 'object' && !Array.isArray(data) && !('notes' in data) ? data : {});
+        notes = data.notes || {};
+      } else { verdicts = {}; notes = {}; }
+    } catch (e) { verdicts = {}; notes = {}; }
+  }
+  function saveVerdicts() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ verdicts: verdicts, notes: notes })); } catch (e) {}
+  }
+
+  function applyFilter() {
+    var type = document.getElementById('type-filter').value;
+    filtered = type === 'all' ? tests.slice() : tests.filter(function(t) { return t.type === type; });
+    index = 0;
+    loadVerdicts();
+    render();
+  }
+
+  function currentTest() { return filtered[index] || null; }
+
+  function render() {
+    var loading = document.getElementById('loading');
+    var frame = document.getElementById('viewer-frame');
+    var bar = document.getElementById('verdict-bar');
+    if (filtered.length === 0) {
+      loading.style.display = 'block';
+      loading.textContent = 'No tests in manifest or filter returned none.';
+      frame.style.display = 'none';
+      bar.style.display = 'none';
+      return;
+    }
+    loading.style.display = 'none';
+    bar.style.display = 'flex';
+    var t = currentTest();
+    document.getElementById('nav-info').textContent = (index + 1) + ' / ' + filtered.length + ' · ' + (t ? t.test_id : '');
+    document.getElementById('btn-prev').disabled = index <= 0;
+    document.getElementById('btn-next').disabled = index >= filtered.length - 1;
+    var v = verdicts[t.test_id];
+    document.getElementById('current-verdict').textContent = v ? 'Marked: ' + VERDICT_LABELS[v] : '';
+    [].forEach.call(document.querySelectorAll('.verdict-bar button[data-verdict]'), function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-verdict') === v);
+    });
+    var noteInput = document.getElementById('note-input');
+    noteInput.value = notes[t.test_id] || '';
+    noteInput.dataset.testId = t.test_id;
+    if (t) {
+      frame.style.display = 'block';
+      frame.src = '/web/viewer.html?viz_url=/reanalyzed/' + t.file;
+    }
+  }
+
+  function setVerdict(verdict) {
+    var t = currentTest();
+    if (!t) return;
+    verdicts[t.test_id] = verdict;
+    saveVerdicts();
+    render();
+  }
+
+  function go(delta) {
+    index = Math.max(0, Math.min(filtered.length - 1, index + delta));
+    render();
+  }
+
+  function exportResults() {
+    var rows = filtered.map(function(t) {
+      return {
+        test_id: t.test_id,
+        type: t.type,
+        verdict: verdicts[t.test_id] || null,
+        note: notes[t.test_id] || null,
+        key_points_count: t.key_points_count,
+        phases_count: t.phases_count,
+        is_valid: t.is_valid,
+        validity_flags: t.validity_flags || []
+      };
+    });
+    var blob = new Blob([JSON.stringify(rows, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'review_results.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function getApiBase() {
+    var base = (document.getElementById('api-base').value || '').trim().replace(/\/$/, '');
+    return base;
+  }
+
+  function setSaveStatus(msg, isError) {
+    var el = document.getElementById('save-status');
+    el.textContent = msg;
+    el.style.color = isError ? '#fca5a5' : '#9ca3af';
+  }
+
+  function saveToServer() {
+    var base = getApiBase();
+    if (!base) { setSaveStatus('Set API base URL first.', true); return; }
+    var payload = filtered.filter(function(t) { return verdicts[t.test_id]; }).map(function(t) {
+      return { test_id: t.test_id, verdict: verdicts[t.test_id], note: notes[t.test_id] || null };
+    });
+    if (payload.length === 0) { setSaveStatus('No verdicts to save.', true); return; }
+    setSaveStatus('Saving…', false);
+    fetch(base + '/review', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verdicts: payload })
+    }).then(function(r) {
+      if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+      return r.json();
+    }).then(function(data) {
+      setSaveStatus('Saved: ' + (data.updated || 0) + ' updated.' + (data.errors && data.errors.length ? ' Errors: ' + data.errors.length : ''), data.errors && data.errors.length);
+    }).catch(function(err) {
+      setSaveStatus('Error: ' + err.message, true);
+    });
+  }
+
+  function loadFromServer() {
+    var base = getApiBase();
+    if (!base) { setSaveStatus('Set API base URL first.', true); return; }
+    if (filtered.length === 0) { setSaveStatus('No tests loaded.', true); return; }
+    var ids = filtered.map(function(t) { return t.test_id; }).join(',');
+    setSaveStatus('Loading…', false);
+    fetch(base + '/review?test_ids=' + encodeURIComponent(ids)).then(function(r) {
+      if (!r.ok) throw new Error(r.status + ' ' + r.statusText);
+      return r.json();
+    }).then(function(data) {
+      var v = data.verdicts || {};
+      var count = 0;
+      for (var tid in v) {
+        if (v[tid].verdict) { verdicts[tid] = v[tid].verdict; count++; }
+        if (v[tid].note != null) { notes[tid] = v[tid].note; }
+      }
+      saveVerdicts();
+      render();
+      setSaveStatus('Loaded: ' + count + ' verdicts.', false);
+    }).catch(function(err) {
+      setSaveStatus('Error: ' + err.message, true);
+    });
+  }
+
+  document.getElementById('btn-prev').onclick = function() { go(-1); };
+  document.getElementById('btn-next').onclick = function() { go(1); };
+  document.getElementById('type-filter').onchange = applyFilter;
+  document.getElementById('btn-jump').onclick = function() {
+    var num = parseInt(document.getElementById('jump-to').value, 10);
+    if (num >= 1 && num <= filtered.length) { index = num - 1; render(); }
+  };
+  document.getElementById('btn-export').onclick = exportResults;
+  document.getElementById('btn-save-server').onclick = saveToServer;
+  document.getElementById('btn-load-server').onclick = loadFromServer;
+  document.getElementById('note-input').onchange = function() {
+    var t = currentTest();
+    if (t) { notes[t.test_id] = this.value.trim() || null; saveVerdicts(); }
+  };
+  document.getElementById('note-input').onblur = function() {
+    var t = currentTest();
+    if (t) { notes[t.test_id] = this.value.trim() || null; saveVerdicts(); }
+  };
+  document.querySelectorAll('.verdict-bar button[data-verdict]').forEach(function(btn) {
+    btn.onclick = function() { setVerdict(btn.getAttribute('data-verdict')); };
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+    if (e.key === 'ArrowLeft') { e.preventDefault(); go(-1); return; }
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(1); return; }
+    var n = e.key === '1' ? 1 : e.key === '2' ? 2 : e.key === '3' ? 3 : e.key === '4' ? 4 : e.key === '5' ? 5 : 0;
+    if (n) {
+      var keys = ['correct', 'points_wrong', 'no_detection', 'data_bad', 'skip'];
+      if (keys[n - 1]) { e.preventDefault(); setVerdict(keys[n - 1]); }
+    }
+  });
+
+  loadVerdicts();
+  fetch('/reanalyzed/manifest.json')
+    .then(function(r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(function(data) {
+      tests = data.tests || [];
+      applyFilter();
+    })
+    .catch(function(err) {
+      document.getElementById('loading').innerHTML = '<span class="error">Failed to load manifest. Run the local server and reanalyze first.</span>';
+      document.getElementById('loading').style.display = 'block';
+    });
+})();
+  </script>
+</body>
+</html>

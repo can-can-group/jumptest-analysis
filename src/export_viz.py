@@ -66,8 +66,11 @@ def build_visualization_payload(
             phases.append(_phase(st, et, name="Landing", description="Impact and absorption",
                 start_index=landing, end_index=n - 1, start_time_s=st, end_time_s=et))
 
-    # Key points
+    # Key points in strict order: onset < min_force < P1 < P2 < take_off < landing
+    # Only include points that lie in the correct temporal range so order is never mixed
     key_points: List[Dict[str, Any]] = []
+    p1_idx = metrics.get("p1_peak_index")
+    p2_idx = metrics.get("p2_peak_index")
     if onset is not None:
         key_points.append({
             "name": "Start of movement",
@@ -75,24 +78,21 @@ def build_visualization_payload(
             "time_s": float(t[onset]),
             "value_N": float(trial.force[onset]),
         })
-    if min_force is not None:
+    if min_force is not None and (take_off is None or min_force < take_off) and (onset is None or min_force > onset):
         key_points.append({
             "name": "Minimum force (eccentric end)",
             "index": min_force,
             "time_s": float(t[min_force]),
             "value_N": float(trial.force[min_force]),
         })
-    # Max RFD kept in metrics only; not drawn on chart
-    p1_idx = metrics.get("p1_peak_index")
-    if p1_idx is not None:
+    if p1_idx is not None and (min_force is None or p1_idx > min_force) and (take_off is None or p1_idx < take_off):
         key_points.append({
             "name": "P1 peak",
             "index": p1_idx,
             "time_s": float(t[p1_idx]),
             "value_N": float(trial.force[p1_idx]),
         })
-    p2_idx = metrics.get("p2_peak_index")
-    if p2_idx is not None:
+    if p2_idx is not None and (p1_idx is None or p2_idx > p1_idx) and (take_off is None or p2_idx < take_off):
         key_points.append({
             "name": "P2 peak",
             "index": p2_idx,
@@ -113,6 +113,13 @@ def build_visualization_payload(
             "time_s": float(t[landing]),
             "value_N": float(trial.force[landing]),
         })
+    # Ensure key_points are always in temporal order (by index)
+    key_points.sort(key=lambda p: p["index"])
+
+    # Flight line: value used for takeoff/landing (move line up until 2 crossings); draw on chart
+    flight_mean_force_N: Optional[float] = getattr(events, "flight_line_N", None)
+    if flight_mean_force_N is None and take_off is not None and landing is not None and landing > take_off and landing < n:
+        flight_mean_force_N = float(np.mean(trial.force[take_off : landing + 1]))  # fallback
 
     # Serialize metrics (convert numpy/types for JSON)
     metrics_ser: Dict[str, Any] = {}
@@ -133,6 +140,7 @@ def build_visualization_payload(
         "test_type": trial.test_type,
         "sample_rate": trial.sample_rate,
         "bodyweight_N": bodyweight,
+        "flight_mean_force_N": flight_mean_force_N,
         "validity": {"is_valid": validity.is_valid, "flags": validity.flags},
         "time_s": _to_list(trial.t),
         "force_N": _to_list(trial.force),

@@ -21,6 +21,8 @@ class CMJConfig:
     rfd_savgol_poly: int = 3
     # P1/P2: min separation (ms) so peaks are not too close; ~40–50% of typical P1–P2 distance (e.g. 200 ms)
     min_p1_p2_separation_ms: float = 80.0
+    # Max P1–P2 separation (ms); beyond this P2 is likely landing peak, not concentric
+    max_p1_p2_separation_ms: float = 450.0
     # P2 must be at least this fraction of P1 force (0 = disabled) to reject noise bumps
     min_peak2_force_ratio: float = 0.0
 

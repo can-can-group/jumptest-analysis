@@ -44,6 +44,7 @@ class CMJEvents:
     eccentric_end: Optional[int] = None  # peak eccentric velocity (min v)
     velocity_zero: Optional[int] = None  # bottom of dip (first v=0 after eccentric_end)
     min_force: Optional[int] = None  # argmin(F) in contact; end of unweighting
+    flight_line_N: Optional[float] = None  # line value used for takeoff/landing (move-up-until-2-crossings)
 
 
 @dataclass

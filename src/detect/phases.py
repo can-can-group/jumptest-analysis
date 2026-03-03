@@ -5,6 +5,46 @@ import numpy as np
 
 from ..data.types import CMJTrial, CMJEvents, CMJPhases
 
+# Search for first force dip (unweighting); extended for slow/uncalibrated data
+UNWEIGHTING_SEARCH_MAX_S = 0.85
+# Local minimum: sample is lower than neighbors within this half-width (samples)
+LOCAL_MIN_HALF_WINDOW = 3
+# Accept dip if force below this fraction of BW (relaxed for uncalibrated/noisy)
+DIP_THRESHOLD_PCT_BW = 0.98
+
+
+def _first_force_dip_after_onset(
+    force: np.ndarray,
+    onset: int,
+    take_off: int,
+    sample_rate: float,
+    bodyweight: float,
+) -> Optional[int]:
+    """Find the first local minimum of force after onset (unweighting dip), not a later dip or landing.
+
+    Search in [onset, onset + UNWEIGHTING_SEARCH_MAX_S]. Uses relaxed dip threshold for uncalibrated data.
+    """
+    n = len(force)
+    if take_off <= onset + LOCAL_MIN_HALF_WINDOW * 2:
+        return None
+    max_search = min(
+        take_off - LOCAL_MIN_HALF_WINDOW,
+        onset + int(sample_rate * UNWEIGHTING_SEARCH_MAX_S),
+        n - 1 - LOCAL_MIN_HALF_WINDOW,
+    )
+    if max_search <= onset + LOCAL_MIN_HALF_WINDOW:
+        return None
+    dip_threshold = DIP_THRESHOLD_PCT_BW * bodyweight
+    for i in range(onset + LOCAL_MIN_HALF_WINDOW, max_search + 1):
+        if force[i] > dip_threshold:
+            continue
+        window = force[i - LOCAL_MIN_HALF_WINDOW : i + LOCAL_MIN_HALF_WINDOW + 1]
+        if len(window) < LOCAL_MIN_HALF_WINDOW * 2 + 1:
+            continue
+        if float(force[i]) <= float(np.min(window)):
+            return i
+    return None
+
 
 def compute_phases(
     trial: CMJTrial,
@@ -49,14 +89,34 @@ def compute_phases(
     if velocity_zero is None and local_min_idx < len(v_seg) - 1:
         velocity_zero = start + local_min_idx + 1
 
-    # Min force = minimum total force in eccentric phase [onset, velocity_zero] (the unweighting dip)
-    # so Unloading/Braking phases and impulse start are correct; fallback to events.min_force
+    # Min force: prefer events.min_force when already set and valid (eccentric dip before concentric push from detect_events).
+    # Otherwise use first force dip after onset so we don't overwrite the correct unweighting dip with a later dip (e.g. pre–take-off).
     force = trial.force
-    min_force = events.min_force
-    if onset is not None and velocity_zero is not None and velocity_zero > onset:
-        seg = force[onset : velocity_zero + 1]
-        if len(seg) > 0:
+    sr = trial.sample_rate
+    bodyweight = float(np.mean(force[: min(int(sr), len(force))]))
+    min_force: Optional[int] = None
+    if (
+        events.min_force is not None
+        and onset is not None
+        and take_off is not None
+        and onset <= events.min_force < take_off
+    ):
+        min_force = events.min_force
+    if min_force is None:
+        min_force = _first_force_dip_after_onset(
+            force, onset, take_off, sr, bodyweight
+        )
+    if min_force is None and onset is not None and take_off is not None and take_off > onset + 5:
+        # Fallback: global min in first 0.65s after onset (for slow/uncalibrated data)
+        win = min(int(sr * 0.65), take_off - onset - 2)
+        if win > 5:
+            seg = force[onset : onset + win]
             min_force = onset + int(np.argmin(seg))
+    if min_force is None:
+        min_force = events.min_force
+    # Enforce order: min_force must be strictly before take_off and after onset
+    if min_force is not None and (take_off is not None and min_force >= take_off or (onset is not None and min_force < onset)):
+        min_force = None
 
     return CMJEvents(
         movement_onset=events.movement_onset,
@@ -65,4 +125,5 @@ def compute_phases(
         eccentric_end=eccentric_end,
         velocity_zero=velocity_zero,
         min_force=min_force,
+        flight_line_N=getattr(events, "flight_line_N", None),
     )

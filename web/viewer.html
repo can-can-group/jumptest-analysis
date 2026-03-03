@@ -1167,6 +1167,28 @@
       };
       annotations.bodyweight = bwLine;
 
+      // Flight line (mean + 50%): takeoff/landing = first two points where force cuts into this line
+      const flightMeanN = data.flight_mean_force_N;
+      if (flightMeanN != null && typeof flightMeanN === 'number' && !isDJ) {
+        annotations.flight_mean = {
+          type: 'line',
+          yMin: flightMeanN,
+          yMax: flightMeanN,
+          xMin: time[0],
+          xMax: time[time.length - 1],
+          borderColor: 'rgba(70, 130, 180, 0.9)',
+          borderWidth: 1,
+          borderDash: [6, 3],
+          label: {
+            display: true,
+            content: `Flight line +50% (${formatVal(flightMeanN)} N)`,
+            position: 'end',
+            color: '#4682B4',
+            font: { size: 10 }
+          }
+        };
+      }
+
       const startKp = data.key_points.find(k => /Start of movement/i.test(k.name));
       const minForceKp = data.key_points.find(k => /Minimum force/i.test(k.name));
       const takeoffKp = data.key_points.find(k => /Take-off/i.test(k.name));

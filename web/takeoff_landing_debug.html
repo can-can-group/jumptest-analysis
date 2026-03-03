@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Takeoff/Landing debug viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" defer></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 1rem 1.5rem;
+      background: #f5f5f5;
+      color: #333;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #666; font-size: 0.9rem; margin-bottom: 1rem; }
+    .error { color: #c53030; padding: 1rem; background: #fef2f2; border-radius: 8px; margin-bottom: 1rem; }
+    .chart-wrap {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .chart-wrap canvas { max-width: 100%; }
+    .debug-panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    .debug-panel h2 { font-size: 1rem; margin: 0 0 0.75rem 0; padding-bottom: 0.5rem; border-bottom: 1px solid #e0e0e0; }
+    .debug-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem 1.5rem;
+      font-size: 0.9rem;
+    }
+    .debug-item { display: flex; flex-direction: column; gap: 0.2rem; }
+    .debug-item .label { color: #666; }
+    .debug-item .value { font-weight: 500; font-family: ui-monospace, monospace; }
+    .debug-item .value.ok { color: #276749; }
+    .debug-item .value.warn { color: #b7791f; }
+    .debug-item .value.err { color: #c53030; }
+    .issues-list { list-style: none; padding: 0; margin: 0.5rem 0 0 0; font-size: 0.9rem; }
+    .issues-list li { padding: 0.35rem 0; color: #922; }
+    .issues-list li:before { content: '⚠ '; }
+    .meta { font-size: 0.85rem; color: #666; margin-bottom: 1rem; }
+    .back-link { display: inline-block; margin-bottom: 1rem; color: #2563eb; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+      padding: 0.5rem 0;
+    }
+    .nav-bar .nav-btn {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #333;
+    }
+    .nav-bar .nav-btn:hover:not(:disabled) { border-color: #666; background: #f0f0f0; }
+    .nav-bar .nav-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .nav-bar .nav-position {
+      font-size: 0.9rem;
+      color: #666;
+      min-width: 6rem;
+      text-align: center;
+    }
+    .nav-bar .nav-jump {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .nav-bar .nav-jump label { font-size: 0.85rem; color: #666; }
+    .nav-bar .nav-jump select {
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      background: #fff;
+      min-width: 12rem;
+      max-width: 20rem;
+    }
+    .nav-bar .nav-hint { font-size: 0.75rem; color: #999; margin-left: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="#" class="back-link" id="backLink">← Back to list</a>
+    <h1>Takeoff/Landing debug</h1>
+    <div id="navBar" class="nav-bar" style="display: none;">
+      <button type="button" class="nav-btn" id="btnPrev" aria-label="Previous test">← Prev</button>
+      <span class="nav-position" id="navPosition">—</span>
+      <button type="button" class="nav-btn" id="btnNext" aria-label="Next test">Next →</button>
+      <div class="nav-jump">
+        <label for="testSelect">Jump:</label>
+        <select id="testSelect"></select>
+      </div>
+      <span class="nav-hint" id="navHint">← → or J (next) / K (prev)</span>
+    </div>
+    <p class="subtitle" id="subtitle">Load a test via <code>?viz_url=/reanalyzed/debug_takeoff_landing/cmj/&lt;test_id&gt;.json</code></p>
+    <div id="error" class="error" style="display: none;"></div>
+    <div id="meta" class="meta" style="display: none;"></div>
+    <div id="chartWrap" class="chart-wrap" style="display: none;">
+      <canvas id="chart"></canvas>
+    </div>
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+      <h2>Debug info (standalone detector)</h2>
+      <div id="debugGrid" class="debug-grid"></div>
+      <ul id="issuesList" class="issues-list"></ul>
+    </div>
+  </div>
+  <script>
+    (function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let currentVizUrl = urlParams.get('viz_url');
+      let chartInstance = null;
+      let manifestData = null;
+      let currentIndex = -1;
+
+      function showError(msg) {
+        const el = document.getElementById('error');
+        el.textContent = msg;
+        el.style.display = 'block';
+      }
+      function hideError() {
+        document.getElementById('error').style.display = 'none';
+      }
+
+      function getManifestUrl() {
+        if (!currentVizUrl) return null;
+        const path = currentVizUrl.replace(/^\//, '').replace(/\/[^/]+\.json$/, '');
+        const lastSlash = path.lastIndexOf('/');
+        const base = lastSlash >= 0 ? path.substring(0, lastSlash) : path;
+        return '/' + base + '/manifest.json';
+      }
+
+      function getTests() {
+        return (manifestData && manifestData.tests) ? manifestData.tests : [];
+      }
+
+      function findCurrentIndex() {
+        const tests = getTests();
+        if (!currentVizUrl || tests.length === 0) return -1;
+        const norm = function(u) {
+          u = (u || '').replace(/^https?:\/\/[^/]+/, '').replace(/#.*$/, '');
+          return u.endsWith('.json') ? u : u + '.json';
+        };
+        const currentNorm = norm(currentVizUrl);
+        for (let i = 0; i < tests.length; i++) {
+          const file = (tests[i].file || '').replace(/^\//, '');
+          const testUrl = '/reanalyzed/debug_takeoff_landing/' + file;
+          if (norm(testUrl) === currentNorm || currentNorm.endsWith(file)) return i;
+        }
+        return -1;
+      }
+
+      function buildVizUrlForIndex(index) {
+        const tests = getTests();
+        if (index < 0 || index >= tests.length) return null;
+        const file = tests[index].file || '';
+        return '/reanalyzed/debug_takeoff_landing/' + file;
+      }
+
+      function updateNavUI() {
+        const tests = getTests();
+        const navBar = document.getElementById('navBar');
+        const btnPrev = document.getElementById('btnPrev');
+        const btnNext = document.getElementById('btnNext');
+        const navPosition = document.getElementById('navPosition');
+        const testSelect = document.getElementById('testSelect');
+        if (tests.length === 0) {
+          navBar.style.display = 'none';
+          return;
+        }
+        navBar.style.display = 'flex';
+        currentIndex = findCurrentIndex();
+        if (currentIndex < 0) currentIndex = 0;
+        btnPrev.disabled = currentIndex <= 0;
+        btnNext.disabled = currentIndex >= tests.length - 1;
+        navPosition.textContent = (currentIndex + 1) + ' / ' + tests.length;
+        testSelect.innerHTML = '';
+        tests.forEach(function(t, i) {
+          const opt = document.createElement('option');
+          opt.value = i;
+          opt.textContent = (t.test_id || t.file || 'Test ' + (i + 1)) + ' (' + (t.type || '').toUpperCase() + ')';
+          if (t.issues && t.issues.length) opt.textContent += ' ⚠';
+          if (i === currentIndex) opt.selected = true;
+          testSelect.appendChild(opt);
+        });
+      }
+
+      function goToIndex(index) {
+        const url = buildVizUrlForIndex(index);
+        if (url == null) return;
+        currentVizUrl = url;
+        const newSearch = new URLSearchParams(window.location.search);
+        newSearch.set('viz_url', url);
+        window.history.replaceState({ index: index }, '', window.location.pathname + '?' + newSearch.toString());
+        loadTest(currentVizUrl);
+        updateNavUI();
+      }
+
+      // Back link: go to debug index if we have a viz_url
+      const backLink = document.getElementById('backLink');
+      if (currentVizUrl) {
+        backLink.href = '/reanalyzed/debug_takeoff_landing/index.html';
+        backLink.style.display = 'inline-block';
+      } else {
+        backLink.style.display = 'none';
+      }
+
+      function formatVal(v) {
+        if (v == null) return '—';
+        const n = Number(v);
+        return Number.isInteger(n) ? n : n.toFixed(2);
+      }
+
+      function renderMeta(data) {
+        const el = document.getElementById('meta');
+        el.innerHTML = `
+          Test: <strong>${(data.test_id || '—')}</strong> · Type: <strong>${(data.test_type || '—')}</strong>
+          · Bodyweight: <strong>${formatVal(data.bodyweight_N)} N</strong>
+          · Sample rate: <strong>${formatVal(data.sample_rate)} Hz</strong>
+        `;
+        el.style.display = 'block';
+      }
+
+      function renderDebugPanel(debug, data) {
+        const grid = document.getElementById('debugGrid');
+        const issuesEl = document.getElementById('issuesList');
+        if (!debug) {
+          grid.innerHTML = '<p>No debug data.</p>';
+          issuesEl.innerHTML = '';
+          document.getElementById('debugPanel').style.display = 'block';
+          return;
+        }
+        const items = [
+          { label: 'Take-off index', value: debug.take_off_index, cls: '' },
+          { label: 'Landing index', value: debug.landing_index, cls: '' },
+          { label: 'Valley index', value: debug.valley_index, cls: '' },
+          { label: 'Concentric peak index', value: debug.concentric_peak_index, cls: '' },
+          { label: 'Flight line (N)', value: debug.flight_line_N != null ? formatVal(debug.flight_line_N) : '—', cls: '' },
+          { label: 'Line band lo (N)', value: debug.line_lo_N != null ? formatVal(debug.line_lo_N) : '—', cls: '' },
+          { label: 'Line band hi (N)', value: debug.line_hi_N != null ? formatVal(debug.line_hi_N) : '—', cls: '' },
+          { label: 'Force at takeoff (N)', value: debug.force_at_takeoff_N != null ? formatVal(debug.force_at_takeoff_N) : '—', cls: '' },
+          { label: 'Force at landing (N)', value: debug.force_at_landing_N != null ? formatVal(debug.force_at_landing_N) : '—', cls: '' },
+          { label: 'Takeoff in band', value: debug.takeoff_in_band === true ? 'Yes' : (debug.takeoff_in_band === false ? 'No' : '—'), cls: debug.takeoff_in_band === true ? 'ok' : (debug.takeoff_in_band === false ? 'err' : '') },
+          { label: 'Landing in band', value: debug.landing_in_band === true ? 'Yes' : (debug.landing_in_band === false ? 'No' : '—'), cls: debug.landing_in_band === true ? 'ok' : (debug.landing_in_band === false ? 'err' : '') },
+          { label: 'Force diff (N)', value: debug.force_diff_N != null ? formatVal(debug.force_diff_N) : '—', cls: '' },
+        ];
+        grid.innerHTML = items.map(function(item) {
+          return '<div class="debug-item"><span class="label">' + item.label + '</span><span class="value ' + (item.cls || '') + '">' + (item.value != null ? String(item.value) : '—') + '</span></div>';
+        }).join('');
+
+        const issues = debug.issues || [];
+        if (issues.length === 0) {
+          issuesEl.innerHTML = '<li class="ok">None</li>';
+        } else {
+          issuesEl.innerHTML = issues.map(function(i) { return '<li>' + i + '</li>'; }).join('');
+        }
+        document.getElementById('debugPanel').style.display = 'block';
+      }
+
+      function buildChart(data) {
+        const time = data.time_s || [];
+        const force = data.force_N || [];
+        if (time.length === 0 || force.length === 0) {
+          showError('No time_s or force_N in data.');
+          return;
+        }
+        const n = Math.min(time.length, force.length);
+        const totalPoints = [];
+        for (let i = 0; i < n; i++) {
+          totalPoints.push({ x: time[i], y: force[i] });
+        }
+
+        const takeOff = data.take_off;
+        const landing = data.landing;
+        const flightLineN = data.flight_line_N;
+        const bodyweightN = data.bodyweight_N;
+        const keyPoints = data.key_points || [];
+
+        const keyPointData = keyPoints.map(function(kp) {
+          const idx = kp.index;
+          const t = idx != null && time[idx] != null ? time[idx] : null;
+          const y = idx != null && force[idx] != null ? force[idx] : null;
+          return t != null && y != null ? { x: t, y: y } : null;
+        }).filter(Boolean);
+
+        const annotations = {};
+
+        if (bodyweightN != null && typeof bodyweightN === 'number') {
+          annotations.bodyweight = {
+            type: 'line',
+            yMin: bodyweightN,
+            yMax: bodyweightN,
+            xMin: time[0],
+            xMax: time[time.length - 1],
+            borderColor: 'rgba(150,150,150,0.8)',
+            borderWidth: 1,
+            borderDash: [4, 4],
+            label: { display: true, content: 'Bodyweight', position: 'end', color: '#666', font: { size: 10 } }
+          };
+        }
+
+        if (flightLineN != null && typeof flightLineN === 'number') {
+          annotations.flight_line = {
+            type: 'line',
+            yMin: flightLineN,
+            yMax: flightLineN,
+            xMin: time[0],
+            xMax: time[time.length - 1],
+            borderColor: 'rgba(70, 130, 180, 0.9)',
+            borderWidth: 1.5,
+            borderDash: [6, 3],
+            label: { display: true, content: 'Flight line (' + formatVal(flightLineN) + ' N)', position: 'end', color: '#4682B4', font: { size: 10 } }
+          };
+        }
+
+        const yMaxForce = force.length ? force.reduce(function(a, b) { return a > b ? a : b; }, force[0]) : 1;
+        if (takeOff != null && time[takeOff] != null) {
+          const tTo = time[takeOff];
+          annotations.takeoff_vline = {
+            type: 'line',
+            xMin: tTo,
+            xMax: tTo,
+            yMin: 0,
+            yMax: yMaxForce || 1,
+            borderColor: 'rgba(34, 197, 94, 0.9)',
+            borderWidth: 2,
+            label: { display: true, content: 'Take-off', position: 'start', color: '#16a34a', font: { size: 10 } }
+          };
+        }
+
+        if (landing != null && time[landing] != null) {
+          const tLand = time[landing];
+          annotations.landing_vline = {
+            type: 'line',
+            xMin: tLand,
+            xMax: tLand,
+            yMin: 0,
+            yMax: yMaxForce || 1,
+            borderColor: 'rgba(239, 68, 68, 0.9)',
+            borderWidth: 2,
+            label: { display: true, content: 'Landing', position: 'start', color: '#dc2626', font: { size: 10 } }
+          };
+        }
+
+        const canvas = document.getElementById('chart');
+        if (chartInstance) chartInstance.destroy();
+        const ctx = canvas.getContext('2d');
+
+        const datasets = [
+          { label: 'Total force', data: totalPoints, borderColor: '#333', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, tension: 0.1 },
+          { label: 'Take-off / Landing', data: keyPointData, borderColor: '#fff', backgroundColor: '#333', borderWidth: 2, pointRadius: 6, pointHoverRadius: 8 }
+        ];
+
+        chartInstance = new Chart(ctx, {
+          type: 'line',
+          data: { datasets: datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2.5,
+            layout: { padding: { top: 24, right: 16, bottom: 88, left: 16 } },
+            plugins: {
+              legend: { position: 'top' },
+              annotation: { clip: false, annotations: annotations }
+            },
+            scales: {
+              x: {
+                type: 'linear',
+                title: { display: true, text: 'Time (s)' },
+                min: time[0],
+                max: time[time.length - 1],
+                ticks: { maxTicksLimit: 14 },
+                grid: { color: 'rgba(0,0,0,0.08)' }
+              },
+              y: {
+                title: { display: true, text: 'Force (N)' },
+                beginAtZero: true,
+                grace: '5%',
+                grid: { color: 'rgba(0,0,0,0.08)' }
+              }
+            }
+          },
+          plugins: (typeof ChartAnnotation !== 'undefined' ? [ChartAnnotation] : [])
+        });
+
+        document.getElementById('chartWrap').style.display = 'block';
+      }
+
+      function loadTest(vizUrl) {
+        if (!vizUrl) return;
+        hideError();
+        document.getElementById('subtitle').textContent = 'Loading…';
+        const fullUrl = vizUrl.startsWith('http') ? vizUrl : (window.location.origin + vizUrl);
+        fetch(fullUrl)
+          .then(function(r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
+            return r.json();
+          })
+          .then(function(data) {
+            renderMeta(data);
+            renderDebugPanel(data.debug || null, data);
+            buildChart(data);
+            document.getElementById('subtitle').textContent = 'Test: ' + (data.test_id || '') + ' — Standalone takeoff/landing detection.';
+          })
+          .catch(function(e) {
+            showError('Failed to load data: ' + e.message);
+          });
+      }
+
+      function init() {
+        if (!currentVizUrl) {
+          document.getElementById('subtitle').textContent = 'No viz_url provided. Open from the debug index (run debug_takeoff_landing.py then open the list).';
+          return;
+        }
+        const manifestUrl = getManifestUrl();
+        if (!manifestUrl) {
+          loadTest(currentVizUrl);
+          return;
+        }
+        const fullManifestUrl = manifestUrl.startsWith('http') ? manifestUrl : (window.location.origin + manifestUrl);
+        fetch(fullManifestUrl)
+          .then(function(r) {
+            if (!r.ok) throw new Error('Manifest: HTTP ' + r.status);
+            return r.json();
+          })
+          .then(function(data) {
+            manifestData = data;
+            updateNavUI();
+            loadTest(currentVizUrl);
+            document.getElementById('btnPrev').addEventListener('click', function() {
+              const tests = getTests();
+              if (currentIndex > 0) goToIndex(currentIndex - 1);
+            });
+            document.getElementById('btnNext').addEventListener('click', function() {
+              const tests = getTests();
+              if (currentIndex < tests.length - 1) goToIndex(currentIndex + 1);
+            });
+            document.getElementById('testSelect').addEventListener('change', function() {
+              const i = parseInt(this.value, 10);
+              if (!isNaN(i)) goToIndex(i);
+            });
+            document.addEventListener('keydown', function(ev) {
+              if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'SELECT' || document.activeElement.tagName === 'TEXTAREA')) return;
+              const tests = getTests();
+              if (ev.key === 'ArrowLeft' || ev.key === 'k') {
+                ev.preventDefault();
+                if (currentIndex > 0) goToIndex(currentIndex - 1);
+              } else if (ev.key === 'ArrowRight' || ev.key === 'j') {
+                ev.preventDefault();
+                if (currentIndex < tests.length - 1) goToIndex(currentIndex + 1);
+              }
+            });
+          })
+          .catch(function(e) {
+            loadTest(currentVizUrl);
+          });
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+      } else {
+        init();
+      }
+    })();
+  </script>
+</body>
+</html>

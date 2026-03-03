@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Review results statistics</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; background: #1a1a1e; color: #e4e4e7; min-height: 100vh; padding: 1rem; }
+    h1 { font-size: 1.25rem; margin: 0 0 1rem 0; }
+    a { color: #60a5fa; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .load-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .load-row label { font-size: 0.9rem; }
+    .load-row input[type="file"] { font-size: 0.9rem; color: #e4e4e7; }
+    .load-row .hint { font-size: 0.85rem; color: #9ca3af; }
+    .error { padding: 1rem; background: #451a1a; color: #fca5a5; border-radius: 8px; margin-bottom: 1rem; }
+    .section { margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1rem; margin: 0 0 0.5rem 0; color: #9ca3af; }
+    .summary-cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .card { background: #252529; border-radius: 8px; padding: 1rem 1.25rem; min-width: 140px; }
+    .card .value { font-size: 1.75rem; font-weight: 700; }
+    .card .label { font-size: 0.85rem; color: #9ca3af; margin-top: 0.25rem; }
+    .card.correct .value { color: #22c55e; }
+    .card.wrong .value { color: #f59e0b; }
+    .card.bad .value { color: #ef4444; }
+    .card.skip .value { color: #6b7280; }
+    table { width: 100%; max-width: 800px; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #333; }
+    th { color: #9ca3af; font-weight: 600; }
+    .num { text-align: right; font-variant-numeric: tabular-nums; }
+    .empty { color: #6b7280; font-style: italic; }
+    #content { display: none; }
+  </style>
+</head>
+<body>
+  <h1>Review results statistics</h1>
+  <p><a href="/">← List</a> · <a href="/web/review.html">Review</a></p>
+  <div class="load-row">
+    <label for="file-input">Load review results JSON:</label>
+    <input type="file" id="file-input" accept=".json,application/json" />
+    <span class="hint">Choose an exported review_results.json (or review_results-3.json) file.</span>
+  </div>
+  <div class="error" id="error" style="display:none;"></div>
+  <div id="content">
+    <div class="summary-cards">
+      <div class="card">
+        <div class="value" id="total">0</div>
+        <div class="label">Total</div>
+      </div>
+      <div class="card correct">
+        <div class="value" id="correct">0</div>
+        <div class="label">Correct</div>
+      </div>
+      <div class="card wrong">
+        <div class="value" id="points-wrong">0</div>
+        <div class="label">Points wrong</div>
+      </div>
+      <div class="card">
+        <div class="value" id="no-detection">0</div>
+        <div class="label">No detection</div>
+      </div>
+      <div class="card bad">
+        <div class="value" id="data-bad">0</div>
+        <div class="label">Data bad</div>
+      </div>
+      <div class="card skip">
+        <div class="value" id="skip">0</div>
+        <div class="label">Skip</div>
+      </div>
+    </div>
+    <div class="section">
+      <h2>By verdict</h2>
+      <table>
+        <thead><tr><th>Verdict</th><th class="num">Count</th><th class="num">%</th></tr></thead>
+        <tbody id="by-verdict"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>By test type</h2>
+      <table>
+        <thead><tr><th>Type</th><th class="num">Count</th></tr></thead>
+        <tbody id="by-type"></tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Problem tests (points wrong / data bad)</h2>
+      <table>
+        <thead><tr><th>Test ID</th><th>Type</th><th>Verdict</th><th>Note</th></tr></thead>
+        <tbody id="problem-list"></tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+(function() {
+  var VERDICT_LABELS = {
+    correct: 'Correct',
+    points_wrong: 'Points wrong',
+    no_detection: 'No detection (data OK)',
+    data_bad: 'Data bad',
+    skip: 'Skip'
+  };
+  function showError(msg) {
+    document.getElementById('error').textContent = msg;
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('content').style.display = 'none';
+  }
+  function hideError() {
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+  }
+  function render(data) {
+    if (!Array.isArray(data) || data.length === 0) {
+      showError('No data in file or empty array.');
+      return;
+    }
+    hideError();
+    var byVerdict = {};
+    var byType = {};
+    var problems = [];
+    data.forEach(function(row) {
+      var v = row.verdict || 'skip';
+      byVerdict[v] = (byVerdict[v] || 0) + 1;
+      var t = (row.type || 'unknown').toLowerCase();
+      byType[t] = (byType[t] || 0) + 1;
+      if (v === 'points_wrong' || v === 'data_bad') {
+        problems.push({
+          test_id: row.test_id || '',
+          type: row.type || '',
+          verdict: v,
+          note: row.note != null ? row.note : ''
+        });
+      }
+    });
+    var total = data.length;
+    document.getElementById('total').textContent = total;
+    document.getElementById('correct').textContent = byVerdict.correct || 0;
+    document.getElementById('points-wrong').textContent = byVerdict.points_wrong || 0;
+    document.getElementById('no-detection').textContent = byVerdict.no_detection || 0;
+    document.getElementById('data-bad').textContent = byVerdict.data_bad || 0;
+    document.getElementById('skip').textContent = byVerdict.skip || 0;
+
+    var verdictOrder = ['correct', 'points_wrong', 'no_detection', 'data_bad', 'skip'];
+    var tbody = document.getElementById('by-verdict');
+    tbody.innerHTML = '';
+    verdictOrder.forEach(function(v) {
+      var n = byVerdict[v] || 0;
+      var pct = total ? ((n / total) * 100).toFixed(1) : '0';
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (VERDICT_LABELS[v] || v) + '</td><td class="num">' + n + '</td><td class="num">' + pct + '%</td>';
+      tbody.appendChild(tr);
+    });
+
+    var typeBody = document.getElementById('by-type');
+    typeBody.innerHTML = '';
+    for (var k in byType) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + k.toUpperCase() + '</td><td class="num">' + byType[k] + '</td>';
+      typeBody.appendChild(tr);
+    }
+
+    var probBody = document.getElementById('problem-list');
+    probBody.innerHTML = '';
+    if (problems.length === 0) {
+      probBody.innerHTML = '<tr><td colspan="4" class="empty">None</td></tr>';
+    } else {
+      problems.forEach(function(p) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td>' + p.test_id + '</td><td>' + (p.type || '').toUpperCase() + '</td><td>' + (VERDICT_LABELS[p.verdict] || p.verdict) + '</td><td>' + (p.note || '') + '</td>';
+        probBody.appendChild(tr);
+      });
+    }
+  }
+  document.getElementById('file-input').addEventListener('change', function() {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    var r = new FileReader();
+    r.onload = function() {
+      try {
+        var data = JSON.parse(r.result);
+        render(data);
+      } catch (e) {
+        showError('Invalid JSON: ' + e.message);
+      }
+    };
+    r.onerror = function() { showError('Failed to read file.'); };
+    r.readAsText(file, 'utf-8');
+  });
+})();
+  </script>
+</body>
+</html>

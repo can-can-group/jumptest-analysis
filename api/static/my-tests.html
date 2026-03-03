@@ -41,10 +41,29 @@
       font-size: 0.875rem;
     }
     a.view-link:hover { opacity: 0.9; }
+    .tag {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .tag.correct { background: #166534; color: #dcfce7; }
+    .tag.bad_data { background: #991b1b; color: #fecaca; }
+    .tag.wrong_detection { background: #9a3412; color: #fed7aa; }
+    .tag.invalid_jump { background: #1e3a5f; color: #bfdbfe; }
+    .tag.no_detection { background: #4b5563; color: #e5e7eb; }
+    .tag.skip { background: #374151; color: #d1d5db; }
   </style>
 </head>
 <body>
   <h1>My Jump Tests</h1>
+  <p class="empty" style="margin-bottom: 1rem; font-size: 0.875rem;">
+    <span class="tag correct">Correct</span> validated ·
+    <span class="tag bad_data">Bad data</span> poor recording ·
+    <span class="tag wrong_detection">Wrong detection</span> analysis issue ·
+    <span class="tag invalid_jump">Invalid / No jump</span> no jump detected (e.g. user mistake)
+  </p>
   <div id="content">
     <p class="empty">Loading…</p>
   </div>
@@ -72,14 +91,27 @@
             content.innerHTML = '<p class="empty">No jump tests found for this user.</p>';
             return;
           }
+          var tagLabels = {
+            correct: 'Correct',
+            bad_data: 'Bad data',
+            wrong_detection: 'Wrong detection',
+            invalid_jump: 'Invalid / No jump',
+            no_detection: 'No detection',
+            skip: 'Skipped'
+          };
           content.innerHTML = '<div class="list">' + items.map(function(t) {
             var date = t.created_at ? new Date(t.created_at).toLocaleString() : '—';
             var metrics = t.metrics || {};
             var jumpHeight = metrics.jump_height_impulse_m != null ? metrics.jump_height_impulse_m : (metrics.jump_height_m != null ? metrics.jump_height_m : null);
             var meta = [t.test_type, date].filter(Boolean).join(' · ');
             if (jumpHeight != null) meta += ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m';
+            var tag = t.quality_tag;
+            var tagHtml = tag && tagLabels[tag] ? '<span class="tag ' + tag + '">' + tagLabels[tag] + '</span>' : '';
             return '<div class="card">' +
-              '<div class="card-info"><strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') + '</div>' +
+              '<div class="card-info">' +
+              (tagHtml ? tagHtml + ' ' : '') +
+              '<strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') +
+              '</div>' +
               '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '&user_id=' + encodeURIComponent(userId) + '">View</a>' +
               '</div>';
           }).join('') + '</div>';
