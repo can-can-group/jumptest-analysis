@@ -53,7 +53,8 @@ def _quality_tag(metrics: Dict[str, Any], review_verdict: Optional[str]) -> Opti
         return "correct"
     if review_verdict in ("no_detection", "skip"):
         return review_verdict
-    return None
+    # Valid trial (has jump height) but no review verdict → show Correct
+    return "correct"
 
 
 @router.post("")

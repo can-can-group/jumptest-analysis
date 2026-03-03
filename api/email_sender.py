@@ -228,9 +228,11 @@ We are pleased to inform you that your Counter-Movement Jump (CMJ) test results 
 """
     if bad_line_en:
         text += f"\n{bad_line_en}\n\n"
-    text += f"""Thank you for participating in our tests. You may view your results and performance metrics using the link below.
+    text += """Thank you for participating in our tests. You may view your results and performance metrics using the link below.
+On your results page, each test may show a tag: Correct = validated result; Bad data = recording issue; Wrong detection = analysis issue; Invalid / No jump = no jump detected (e.g. trial mistake).
 
-{my_tests_url}
+"""
+    text += f"""{my_tests_url}
 
 ---
 Türkçe
@@ -242,9 +244,11 @@ Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazı
 """
     if bad_line_tr:
         text += f"\n{bad_line_tr}\n\n"
-    text += f"""Testlere katıldığınız için teşekkür ederiz. Sonuçlarınızı aşağıdaki bağlantıyı kullanarak görüntüleyebilirsiniz.
+    text += """Testlere katıldığınız için teşekkür ederiz. Sonuçlarınızı aşağıdaki bağlantıyı kullanarak görüntüleyebilirsiniz.
+Sonuç sayfanızda her test için bir etiket: Doğru = onaylanmış sonuç; Kötü veri = kayıt sorunu; Yanlış tespit = analiz sorunu; Geçersiz / Sıçrama yok = sıçrama tespit edilmedi.
 
-{my_tests_url}
+"""
+    text += f"""{my_tests_url}
 """
 
     bad_html_en = ""
@@ -273,6 +277,7 @@ Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazı
       <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">We are pleased to inform you that your Counter-Movement Jump (CMJ) test results have been processed and are now ready for your review.</p>
       {bad_html_en}
       <p style="margin: 16px 0 0 0; color: #374151; font-size: 16px; line-height: 1.6;">Thank you for participating in our tests. You may view your results and performance metrics using the button below.</p>
+      <p style="margin: 16px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">On your results page, each test may show a tag: <strong>Correct</strong> = validated result; <strong>Bad data</strong> = recording issue; <strong>Wrong detection</strong> = analysis issue; <strong>Invalid / No jump</strong> = no jump detected (e.g. trial mistake).</p>
       <p style="margin: 20px 0 8px 0; text-align: center;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
           <tr>
@@ -287,6 +292,7 @@ Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazı
       <p style="margin: 0 0 12px 0; color: #374151; font-size: 16px; line-height: 1.6;">Sıçrama (CMJ) test sonuçlarınızın işlendiğini ve incelemeniz için hazır olduğunu bildirmekten memnuniyet duyarız.</p>
       {bad_html_tr}
       <p style="margin: 16px 0 0 0; color: #374151; font-size: 16px; line-height: 1.6;">Testlere katıldığınız için teşekkür ederiz. Sonuçlarınızı aşağıdaki bağlantıyı kullanarak görüntüleyebilirsiniz.</p>
+      <p style="margin: 16px 0 0 0; color: #6b7280; font-size: 14px; line-height: 1.5;">Sonuç sayfanızda her test için bir etiket görebilirsiniz: <strong>Doğru</strong> = onaylanmış sonuç; <strong>Kötü veri</strong> = kayıt sorunu; <strong>Yanlış tespit</strong> = analiz sorunu; <strong>Geçersiz / Sıçrama yok</strong> = sıçrama tespit edilmedi (örn. deneme hatası).</p>
       <p style="margin: 16px 0 0 0; text-align: center;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" style="margin: 0 auto;">
           <tr>

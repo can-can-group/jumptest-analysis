@@ -54,11 +54,21 @@
     .tag.invalid_jump { background: #1e3a5f; color: #bfdbfe; }
     .tag.no_detection { background: #4b5563; color: #e5e7eb; }
     .tag.skip { background: #374151; color: #d1d5db; }
+    .lang-toggle { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
+    .lang-toggle span { font-size: 0.875rem; color: var(--muted); margin-right: 0.25rem; }
+    .lang-toggle a { padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; text-decoration: none; color: var(--muted); border: 1px solid var(--border); }
+    .lang-toggle a:hover { color: var(--text); border-color: var(--muted); }
+    .lang-toggle a.active { background: var(--accent); color: #fff; border-color: var(--accent); }
   </style>
 </head>
 <body>
-  <h1>My Jump Tests</h1>
-  <p class="empty" style="margin-bottom: 1rem; font-size: 0.875rem;">
+  <div class="lang-toggle">
+    <span id="langLabel">Language:</span>
+    <a href="#" id="langEn" class="active">English</a>
+    <a href="#" id="langTr">Türkçe</a>
+  </div>
+  <h1 id="pageTitle">My Jump Tests</h1>
+  <p class="empty" id="legendText" style="margin-bottom: 1rem; font-size: 0.875rem;">
     <span class="tag correct">Correct</span> validated ·
     <span class="tag bad_data">Bad data</span> poor recording ·
     <span class="tag wrong_detection">Wrong detection</span> analysis issue ·
@@ -70,15 +80,49 @@
 
   <script>
     (function() {
+      var lang = (localStorage.getItem('jumptest_lang') || 'en').replace(/^tr$/i, 'tr') || 'en';
+      var strings = {
+        en: {
+          langLabel: 'Language:',
+          title: 'My Jump Tests',
+          legend: '<span class="tag correct">Correct</span> validated · <span class="tag bad_data">Bad data</span> poor recording · <span class="tag wrong_detection">Wrong detection</span> analysis issue · <span class="tag invalid_jump">Invalid / No jump</span> no jump detected (e.g. user mistake)',
+          loading: 'Loading…',
+          missingUserId: 'Missing <code>user_id</code> in the URL. Use: /my-tests?user_id=YOUR_USER_ID',
+          noTests: 'No jump tests found for this user.',
+          error: 'Error: ',
+          view: 'View',
+          tagCorrect: 'Correct', tagBadData: 'Bad data', tagWrongDetection: 'Wrong detection',
+          tagInvalidJump: 'Invalid / No jump', tagNoDetection: 'No detection', tagSkip: 'Skipped'
+        },
+        tr: {
+          langLabel: 'Dil:',
+          title: 'Sıçrama Testlerim',
+          legend: '<span class="tag correct">Doğru</span> onaylı · <span class="tag bad_data">Kötü veri</span> kayıt sorunu · <span class="tag wrong_detection">Yanlış tespit</span> analiz sorunu · <span class="tag invalid_jump">Geçersiz / Sıçrama yok</span> sıçrama tespit edilmedi',
+          loading: 'Yükleniyor…',
+          missingUserId: 'URL\'de <code>user_id</code> eksik. Kullanım: /my-tests?user_id=KULLANICI_ID',
+          noTests: 'Bu kullanıcı için sıçrama testi bulunamadı.',
+          error: 'Hata: ',
+          view: 'Görüntüle',
+          tagCorrect: 'Doğru', tagBadData: 'Kötü veri', tagWrongDetection: 'Yanlış tespit',
+          tagInvalidJump: 'Geçersiz / Sıçrama yok', tagNoDetection: 'Tespit yok', tagSkip: 'Atlandı'
+        }
+      };
+      function setLang(l) { lang = l; localStorage.setItem('jumptest_lang', l); document.getElementById('langEn').classList.toggle('active', l === 'en'); document.getElementById('langTr').classList.toggle('active', l === 'tr'); document.getElementById('langLabel').textContent = strings[l].langLabel; document.getElementById('pageTitle').textContent = strings[l].title; document.getElementById('legendText').innerHTML = strings[l].legend; if (typeof renderList === 'function') renderList(); }
+      document.getElementById('langEn').addEventListener('click', function(e) { e.preventDefault(); setLang('en'); });
+      document.getElementById('langTr').addEventListener('click', function(e) { e.preventDefault(); setLang('tr'); });
+      if (lang === 'tr') { document.getElementById('langEn').classList.remove('active'); document.getElementById('langTr').classList.add('active'); document.getElementById('langLabel').textContent = strings.tr.langLabel; document.getElementById('pageTitle').textContent = strings.tr.title; document.getElementById('legendText').innerHTML = strings.tr.legend; }
+
       var basePath = (window.__BASE_PATH__ || '').replace(/\/$/, '');
       var params = new URLSearchParams(window.location.search);
       var userId = params.get('user_id');
       var content = document.getElementById('content');
 
       if (!userId) {
-        content.innerHTML = '<p class="empty">Missing <code>user_id</code> in the URL. Use: /my-tests?user_id=YOUR_USER_ID</p>';
+        content.innerHTML = '<p class="empty">' + (lang === 'tr' ? strings.tr.missingUserId : strings.en.missingUserId) + '</p>';
         return;
       }
+
+      content.innerHTML = '<p class="empty">' + (lang === 'tr' ? strings.tr.loading : strings.en.loading) + '</p>';
 
       fetch(basePath + '/jump-tests?user_id=' + encodeURIComponent(userId) + '&limit=100')
         .then(function(r) {
@@ -88,23 +132,33 @@
         .then(function(data) {
           var items = data.items || [];
           if (items.length === 0) {
-            content.innerHTML = '<p class="empty">No jump tests found for this user.</p>';
+            content.innerHTML = '<p class="empty">' + (lang === 'tr' ? strings.tr.noTests : strings.en.noTests) + '</p>';
             return;
           }
-          var tagLabels = {
-            correct: 'Correct',
-            bad_data: 'Bad data',
-            wrong_detection: 'Wrong detection',
-            invalid_jump: 'Invalid / No jump',
-            no_detection: 'No detection',
-            skip: 'Skipped'
+          var tagLabels = lang === 'tr' ? { correct: strings.tr.tagCorrect, bad_data: strings.tr.tagBadData, wrong_detection: strings.tr.tagWrongDetection, invalid_jump: strings.tr.tagInvalidJump, no_detection: strings.tr.tagNoDetection, skip: strings.tr.tagSkip } : { correct: 'Correct', bad_data: 'Bad data', wrong_detection: 'Wrong detection', invalid_jump: 'Invalid / No jump', no_detection: 'No detection', skip: 'Skipped' };
+          var viewLabel = lang === 'tr' ? strings.tr.view : strings.en.view;
+          window.renderList = function() {
+            tagLabels = lang === 'tr' ? { correct: strings.tr.tagCorrect, bad_data: strings.tr.tagBadData, wrong_detection: strings.tr.tagWrongDetection, invalid_jump: strings.tr.tagInvalidJump, no_detection: strings.tr.tagNoDetection, skip: strings.tr.tagSkip } : { correct: 'Correct', bad_data: 'Bad data', wrong_detection: 'Wrong detection', invalid_jump: 'Invalid / No jump', no_detection: 'No detection', skip: 'Skipped' };
+            viewLabel = lang === 'tr' ? strings.tr.view : strings.en.view;
+            content.innerHTML = '<div class="list">' + items.map(function(t) {
+              var date = t.created_at ? new Date(t.created_at).toLocaleString() : '—';
+              var metrics = t.metrics || {};
+              var jumpHeight = metrics.jump_height_impulse_m != null ? metrics.jump_height_impulse_m : (metrics.jump_height_m != null ? metrics.jump_height_m : null);
+              var tag = t.quality_tag;
+              var tagHtml = tag && tagLabels[tag] ? '<span class="tag ' + tag + '">' + tagLabels[tag] + '</span>' : '';
+              return '<div class="card">' +
+                '<div class="card-info">' +
+                (tagHtml ? tagHtml + ' ' : '') +
+                '<strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') +
+                '</div>' +
+                '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '&user_id=' + encodeURIComponent(userId) + '">' + viewLabel + '</a>' +
+                '</div>';
+            }).join('') + '</div>';
           };
           content.innerHTML = '<div class="list">' + items.map(function(t) {
             var date = t.created_at ? new Date(t.created_at).toLocaleString() : '—';
             var metrics = t.metrics || {};
             var jumpHeight = metrics.jump_height_impulse_m != null ? metrics.jump_height_impulse_m : (metrics.jump_height_m != null ? metrics.jump_height_m : null);
-            var meta = [t.test_type, date].filter(Boolean).join(' · ');
-            if (jumpHeight != null) meta += ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m';
             var tag = t.quality_tag;
             var tagHtml = tag && tagLabels[tag] ? '<span class="tag ' + tag + '">' + tagLabels[tag] + '</span>' : '';
             return '<div class="card">' +
@@ -112,12 +166,12 @@
               (tagHtml ? tagHtml + ' ' : '') +
               '<strong>' + (t.test_type || 'Test') + '</strong> ' + date + (jumpHeight != null ? ' · ' + (Math.round(jumpHeight * 100) / 100) + ' m' : '') +
               '</div>' +
-              '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '&user_id=' + encodeURIComponent(userId) + '">View</a>' +
+              '<a class="view-link" href="' + basePath + '/viewer?test_id=' + encodeURIComponent(t.id) + '&user_id=' + encodeURIComponent(userId) + '">' + viewLabel + '</a>' +
               '</div>';
           }).join('') + '</div>';
         })
         .catch(function(err) {
-          content.innerHTML = '<p class="empty" style="color: #ef4444;">Error: ' + (err.message || 'Could not load tests') + '</p>';
+          content.innerHTML = '<p class="empty" style="color: #ef4444;">' + (lang === 'tr' ? strings.tr.error : strings.en.error) + (err.message || 'Could not load tests') + '</p>';
         });
     })();
   </script>

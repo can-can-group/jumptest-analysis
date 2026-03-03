@@ -400,16 +400,34 @@
     .email-modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.5rem; }
     .email-modal-actions button { padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; font-size: 0.9rem; }
     .email-modal-actions button.primary { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
+    .lang-toggle { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem; }
+    .lang-toggle span { font-size: 0.875rem; color: var(--muted); margin-right: 0.25rem; }
+    .lang-toggle a { padding: 0.35rem 0.75rem; border-radius: 6px; font-size: 0.85rem; text-decoration: none; color: var(--muted); border: 1px solid var(--border); }
+    .lang-toggle a:hover { color: var(--text); border-color: var(--grey-mid); }
+    .lang-toggle a.active { background: var(--grey-dark); color: #fff; border-color: var(--grey-dark); }
+    #infoSection { margin-top: 2rem; padding: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; line-height: 1.55; display: none; }
+    #infoSection.visible { display: block; }
+    #infoSection h3 { font-size: 1rem; margin: 0 0 0.75rem 0; color: var(--grey-dark); }
+    #infoSection h4 { font-size: 0.95rem; margin: 1rem 0 0.4rem 0; color: var(--text); }
+    #infoSection h5 { font-size: 0.9rem; margin: 0.85rem 0 0.35rem 0; color: var(--grey-dark); font-weight: 600; }
+    #infoSection p, #infoSection ul { margin: 0 0 0.5rem 0; color: var(--muted); }
+    #infoSection ul { padding-left: 1.25rem; }
+    #infoSection li { margin-bottom: 0.35rem; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Force Plate — Phase & Key Point Viewer</h1>
+    <div class="lang-toggle no-print">
+      <span id="viewerLangLabel">Language:</span>
+      <a href="#" id="viewerLangEn" class="active">English</a>
+      <a href="#" id="viewerLangTr">Türkçe</a>
+    </div>
+    <h1 id="viewerTitle">Force Plate — Phase & Key Point Viewer</h1>
     <p class="subtitle" id="subtitle">Jump test results.</p>
 
     <div id="standaloneToolbar" class="toolbar no-print" style="margin-bottom: 1rem;">
       <a id="backToMyTestsBtn" style="display:none; align-items:center; gap:0.4rem; padding:0.5rem 1rem; border-radius:8px; border:1px solid var(--border); background:var(--surface); text-decoration:none; color:var(--text); font-size:0.9rem; cursor:pointer;">← My Tests</a>
-      <label>Load visualization JSON
+      <label id="labelLoadJson"><span id="labelLoadJsonText">Load visualization JSON</span>
         <input type="file" id="fileInputViz" accept=".json">
       </label>
     </div>
@@ -503,23 +521,223 @@
     </div>
 
     <div id="comparisonContainer" class="comparison-container">
-      <div class="comparison-section-title">Trial 2 — Chart</div>
+      <div class="comparison-section-title" id="compareTrial2Title">Trial 2 — Chart</div>
       <div id="chartWrap2" class="chart-wrap chart-wrap-trial2" style="display: none;">
         <canvas id="chart2"></canvas>
       </div>
-      <div class="comparison-section-title" style="margin-top: 1.5rem;">Phases, key points & metrics — Trial 1 vs Trial 2</div>
+      <div class="comparison-section-title" style="margin-top: 1.5rem;" id="comparePhasesTitle">Phases, key points & metrics — Trial 1 vs Trial 2</div>
       <div id="comparisonTables" class="panel" style="margin-top: 0.5rem;"></div>
-      <div class="comparison-section-title" style="margin-top: 1.5rem;">Total force comparison (from start of movement)</div>
+      <div class="comparison-section-title" style="margin-top: 1.5rem;" id="compareForceTitle">Total force comparison (from start of movement)</div>
       <div id="chartWrapCompareForce" class="chart-wrap chart-wrap-trial2" style="display: none;">
         <canvas id="chartCompareForce"></canvas>
       </div>
     </div>
+
+    <div id="infoSection" class="info-section" aria-labelledby="infoSectionTitle"></div>
 
     <p id="placeholder" class="empty">Loading…</p>
   </div>
   <!-- INJECT_VIZ_DATA -->
   <!-- INJECT_ATHLETE_DETAILS -->
   <script>
+    (function initViewerLang() {
+      var viewerLang = (localStorage.getItem('jumptest_lang') || 'en').replace(/^tr$/i, 'tr') || 'en';
+      window.VIEWER_LANG = viewerLang;
+      var T = {
+        en: {
+          langLabel: 'Language:', title: 'Force Plate — Phase & Key Point Viewer', subtitle: 'Jump test results.',
+          loadJson: 'Load visualization JSON', myTests: '← My Tests',
+          downloadPdf: 'Download as PDF', email: 'Email', viewAnother: 'View another test', compareWith: 'Compare with another test…',
+          selectCompare: 'Select a test to compare', selectView: 'Select a test to view', sortBy: 'Sort by:',
+          dateNewest: 'Date (newest first)', dateOldest: 'Date (oldest first)', heightDesc: 'Jump height (high → low)', heightAsc: 'Jump height (low → high)',
+          sendEmail: 'Send jump test by email', to: 'To', attachPdf: 'Attach PDF', cancel: 'Cancel', send: 'Send',
+          phases: 'Phases', keyPoints: 'Key points', metrics: 'Metrics',
+          loading: 'Loading…', noDataInstruction: 'Load a visualization JSON file using the button above, or open with <strong>?viz_url=&lt;path&gt;</strong> in the URL.', trialValid: 'Trial valid.', trial2Chart: 'Trial 2 — Chart', comparePhases: 'Phases, key points & metrics — Trial 1 vs Trial 2',
+          compareForce: 'Total force comparison (from start of movement)',
+          infoTitle: 'Understanding your results', infoIntro: 'This section explains the phases, key points, and metrics shown above so you can interpret your jump test and use the data for training or research.',
+          infoPhasesTitle: 'Phases', infoPhasesIntro: 'The force–time curve is split into phases. Each phase has a start and end time (in seconds). The shape and duration of each phase describe how you produced force during the jump.',
+          infoQuiet: 'Quiet: Standing still on the plate; force equals body weight. Used as the baseline to detect when the jump starts.',
+          infoEccUnload: 'Eccentric (unloading): You lower your body (countermovement); force drops below body weight. Deeper or longer unweighting can increase stretch and storage of elastic energy.',
+          infoEccBrake: 'Eccentric (braking): Muscles decelerate the downward motion; force rises again. This phase ends at the minimum force point (eccentric end) before the push.',
+          infoConcentric: 'Concentric: Push phase; force rises through P1 and P2 peaks until take-off. This is where most of the impulse for the jump is produced.',
+          infoFlight: 'Flight: You are in the air; the plate reads near zero. Flight time is used to compute jump height (g×T²/8).',
+          infoLanding: 'Landing: Impact and absorption after touchdown. Not used for jump height; included for completeness of the trial.',
+          infoKpTitle: 'Key points', infoKpIntro: 'Key points are specific instants detected on the curve. They mark the boundaries of phases and the peaks used to compute metrics.',
+          infoOnset: 'Start of movement: When force first drops below baseline (onset of countermovement). Used as time zero for durations and early RFD.',
+          infoMinForce: 'Minimum force (eccentric end): Deepest unweighting before the push. Marks the end of eccentric and start of concentric; used for unweighting time/impulse and braking impulse.',
+          infoP1P2: 'P1 and P2: First and second force peaks in the concentric phase. They reflect the way force is applied (single vs double peak); used for braking and propulsion impulse.',
+          infoTakeoff: 'Take-off: Last instant of contact before flight. Used for jump height (impulse–momentum), RSI, and propulsion impulse.',
+          infoLand: 'Landing: First instant of contact after flight. Used with take-off to get flight time and flight-time jump height.',
+          infoMetricsTitle: 'Metrics — detailed explanations', infoMetricsIntro: 'Metrics are derived from the force–time curve and key points. They are used in training (monitoring performance and asymmetry), research (biomechanics), and return-to-sport testing.',
+          infoPerfTitle: 'Performance outcomes',
+          infoJumpHeightImpulse: 'Jump height (impulse–momentum): Height in metres from take-off velocity (v²/2g). Uses the net impulse from contact and is often the preferred method when the force plate is well calibrated.',
+          infoJumpHeightFlight: 'Jump height (flight time): Height in metres from flight time (g×T²/8). Simple and robust; useful when flight is clearly detected.',
+          infoTakeoffVel: 'Take-off velocity: Vertical velocity at take-off (m/s) from impulse/mass. Direct measure of how fast you left the ground.',
+          infoFlightTime: 'Flight time: Duration in the air from take-off to landing (s). Used for flight-time jump height.',
+          infoTimeToTakeoff: 'Time to take-off: From start of movement to take-off (s). Shorter time with same jump height indicates more explosiveness.',
+          infoRsi: 'RSI modified: Jump height ÷ time to take-off. Higher values mean more explosive; used to compare athletes or track changes over time.',
+          infoPowerRfdTitle: 'Power and rate of force development (RFD)',
+          infoPeakPower: 'Peak power: Maximum instantaneous power (W) during contact. Power = force × velocity; high values indicate strong power production.',
+          infoPeakRfd: 'Peak RFD: Maximum rate of force development (N/s) during contact. How quickly you build force; important for sprint and jump performance.',
+          infoRfdEarly: 'RFD 0–100 ms / 0–200 ms: Peak RFD in the first 100 or 200 ms from onset. Captures early explosiveness; used in rehabilitation and early phase training.',
+          infoRfdEccCon: 'Peak RFD eccentric / concentric: Peak RFD in the eccentric and concentric phases separately. Shows where force is developed fastest.',
+          infoPhaseTimesTitle: 'Phase durations and timing',
+          infoUnweightingTime: 'Unweighting time: From onset to minimum force (s). How long the countermovement (unweighting) lasts.',
+          infoEccentricTime: 'Eccentric time: Duration of the full eccentric phase (unloading + braking).',
+          infoConcentricTime: 'Concentric time: From first peak (P1) to take-off (s). Duration of the main push phase.',
+          infoPhaseImpulsesTitle: 'Phase impulses (force × time)',
+          infoUnweightingImpulse: 'Unweighting impulse: Impulse from onset to minimum force (N·s). Represents the “loading” part of the movement.',
+          infoBrakingImpulse: 'Braking impulse: From minimum force to P1 (N·s). Force applied to decelerate the downward motion and transition into the push.',
+          infoPropulsionImpulse: 'Propulsion impulse: From P1 to take-off (N·s). Force applied to accelerate upward; main contributor to take-off velocity.',
+          infoForcesTitle: 'Forces at key points',
+          infoMinForceN: 'Minimum force (N): Force at the eccentric minimum. Low values indicate deep unweighting.',
+          infoP1P2N: 'P1 / P2 peak force (N): Force at the first and second concentric peaks. Used with bodyweight to express as % BW if needed.',
+          infoPeakConcentricForce: 'Peak concentric force: Maximum force (N) in the concentric phase. Mean concentric force is the average over that phase.',
+          infoDisplacementTitle: 'Displacement',
+          infoCountermovementDepth: 'Countermovement depth: Maximum downward centre-of-mass displacement from onset (m). Deeper countermovement can increase stretch and jump height up to a point.',
+          infoCOMAtTakeoff: 'COM displacement at take-off: Net vertical displacement of the centre of mass from onset to take-off (m).',
+          infoAsymmetryTitle: 'Asymmetry (left vs right)',
+          infoAsymmetry: 'Peak force, concentric impulse, eccentric impulse, and RFD asymmetry (%): Difference between left and right limbs. Values away from 0% may indicate imbalance or injury risk; used in screening and return-to-sport.'
+        },
+        tr: {
+          langLabel: 'Dil:', title: 'Kuvvet Plakası — Faz ve Anahtar Nokta Görüntüleyici', subtitle: 'Sıçrama testi sonuçları.',
+          loadJson: 'Görselleştirme JSON yükle', myTests: '← Testlerim',
+          downloadPdf: 'PDF indir', email: 'E-posta', viewAnother: 'Başka test görüntüle', compareWith: 'Başka testle karşılaştır…',
+          selectCompare: 'Karşılaştırılacak testi seçin', selectView: 'Görüntülenecek testi seçin', sortBy: 'Sırala:',
+          dateNewest: 'Tarih (yeniden eskiye)', dateOldest: 'Tarih (eskiden yeniye)', heightDesc: 'Sıçrama yüksekliği (yüksek → düşük)', heightAsc: 'Sıçrama yüksekliği (düşük → yüksek)',
+          sendEmail: 'Sıçrama testini e-posta ile gönder', to: 'Alıcı', attachPdf: 'PDF ekle', cancel: 'İptal', send: 'Gönder',
+          phases: 'Fazlar', keyPoints: 'Anahtar noktalar', metrics: 'Metrikler',
+          loading: 'Yükleniyor…', noDataInstruction: 'Yukarıdaki düğmeyle bir görselleştirme JSON dosyası yükleyin veya URL\'de <strong>?viz_url=&lt;yol&gt;</strong> ile açın.', trialValid: 'Deneme geçerli.', trial2Chart: 'Deneme 2 — Grafik', comparePhases: 'Fazlar, anahtar noktalar ve metrikler — Deneme 1 vs 2',
+          compareForce: 'Toplam kuvvet karşılaştırması (hareket başlangıcından)',
+          infoTitle: 'Sonuçlarınızı anlama', infoIntro: 'Bu bölüm, sıçrama testinizi yorumlamanız ve veriyi antrenman veya araştırmada kullanmanız için yukarıdaki fazları, anahtar noktaları ve metrikleri açıklar.',
+          infoPhasesTitle: 'Fazlar', infoPhasesIntro: 'Kuvvet–zaman eğrisi fazlara ayrılır. Her fazın bir başlangıç ve bitiş zamanı (saniye) vardır. Her fazın şekli ve süresi, sıçrama sırasında kuvveti nasıl ürettiğinizi betimler.',
+          infoQuiet: 'Hareketsiz: Plaka üzerinde ayakta; kuvvet vücut ağırlığına eşittir. Sıçramanın ne zaman başladığını tespit etmek için referans olarak kullanılır.',
+          infoEccUnload: 'Eksantrik (boşaltma): Vücudunuzu indirirsiniz (karşı hareket); kuvvet vücut ağırlığının altına düşer. Daha derin veya uzun boşaltma elastik enerji depolanmasını artırabilir.',
+          infoEccBrake: 'Eksantrik (frenleme): Kaslar aşağı hareketi yavaşlatır; kuvvet tekrar yükselir. Bu faz minimum kuvvet noktasında (eksantrik sonu) biter.',
+          infoConcentric: 'Konsantrik: İtme fazı; kuvvet P1 ve P2 tepelerinden kalkışa kadar yükselir. Sıçrama için impulsun büyük kısmı burada üretilir.',
+          infoFlight: 'Uçuş: Havadasınız; plaka sıfıra yakın okur. Uçuş süresi sıçrama yüksekliğini hesaplamak için kullanılır (g×T²/8).',
+          infoLanding: 'İniş: Temas sonrası darbe ve emilim. Sıçrama yüksekliği hesaplamasında kullanılmaz; denemenin tamamı için gösterilir.',
+          infoKpTitle: 'Anahtar noktalar', infoKpIntro: 'Anahtar noktalar eğri üzerinde tespit edilen anlardır. Faz sınırlarını ve metrik hesaplarında kullanılan tepe noktalarını işaretler.',
+          infoOnset: 'Hareket başlangıcı: Kuvvetin ilk kez referansın altına düştüğü an (karşı hareket başlangıcı). Süreler ve erken RFD için sıfır zamanı olarak kullanılır.',
+          infoMinForce: 'Minimum kuvvet (eksantrik sonu): İtmeden önce en derin boşaltma. Eksantriğin bitişi ve konsantriğin başlangıcı; boşaltma süresi/impulsu ve frenleme impulsu için kullanılır.',
+          infoP1P2: 'P1 ve P2: Konsantrik fazdaki birinci ve ikinci kuvvet tepeleri. Kuvvetin nasıl uygulandığını (tek/çift tepe) yansıtır; frenleme ve itme impulsu için kullanılır.',
+          infoTakeoff: 'Kalkış: Uçuştan önceki son temas anı. Sıçrama yüksekliği (impuls–momentum), RSI ve itme impulsu için kullanılır.',
+          infoLand: 'İniş: Uçuştan sonraki ilk temas. Uçuş süresi ve uçuş süreli sıçrama yüksekliği için kalkışla birlikte kullanılır.',
+          infoMetricsTitle: 'Metrikler — ayrıntılı açıklamalar', infoMetricsIntro: 'Metrikler kuvvet–zaman eğrisi ve anahtar noktalardan türetilir. Antrenmanda (performans ve asimetri takibi), araştırmada (biyomekanik) ve spora dönüş testlerinde kullanılır.',
+          infoPerfTitle: 'Performans çıktıları',
+          infoJumpHeightImpulse: 'Sıçrama yüksekliği (impuls–momentum): Kalkış hızından metre cinsinden yükseklik (v²/2g). Temas net impulsunu kullanır; plaka iyi kalibre olduğunda sıklıkla tercih edilir.',
+          infoJumpHeightFlight: 'Sıçrama yüksekliği (uçuş süresi): Uçuş süresinden metre cinsinden yükseklik (g×T²/8). Basit ve güvenilir; uçuş net tespit edildiğinde kullanışlıdır.',
+          infoTakeoffVel: 'Kalkış hızı: İmpuls/kütleden hesaplanan kalkıştaki dikey hız (m/s). Yeri ne hızda terk ettiğinizin doğrudan ölçüsü.',
+          infoFlightTime: 'Uçuş süresi: Kalkıştan inişe havada kalma süresi (s). Uçuş süreli sıçrama yüksekliği için kullanılır.',
+          infoTimeToTakeoff: 'Kalkışa kadar süre: Hareket başlangıcından kalkışa (s). Aynı sıçrama yüksekliğinde daha kısa süre daha patlayıcılığı gösterir.',
+          infoRsi: 'RSI modifiye: Sıçrama yüksekliği ÷ kalkışa kadar süre. Yüksek değerler daha patlayıcı; sporcuları karşılaştırmak veya zaman içindeki değişimi izlemek için kullanılır.',
+          infoPowerRfdTitle: 'Güç ve kuvvet geliştirme hızı (RFD)',
+          infoPeakPower: 'Tepe güç: Temas sırasında maksimum anlık güç (W). Güç = kuvvet × hız; yüksek değerler güç üretimini gösterir.',
+          infoPeakRfd: 'Tepe RFD: Temas sırasında maksimum kuvvet geliştirme hızı (N/s). Kuvveti ne kadar hızlı oluşturduğunuz; sprint ve sıçrama performansı için önemli.',
+          infoRfdEarly: 'RFD 0–100 ms / 0–200 ms: Başlangıçtan itibaren ilk 100 veya 200 ms içindeki tepe RFD. Erken patlayıcılığı yansıtır; rehabilitasyon ve erken faz antrenmanında kullanılır.',
+          infoRfdEccCon: 'Tepe RFD eksantrik / konsantrik: Eksantrik ve konsantrik fazlarda ayrı ayrı tepe RFD. Kuvvetin nerede en hızlı geliştiğini gösterir.',
+          infoPhaseTimesTitle: 'Faz süreleri ve zamanlama',
+          infoUnweightingTime: 'Boşaltma süresi: Başlangıçtan minimum kuvvete (s). Karşı hareketin (boşaltmanın) ne kadar sürdüğü.',
+          infoEccentricTime: 'Eksantrik süre: Tüm eksantrik fazın süresi (boşaltma + frenleme).',
+          infoConcentricTime: 'Konsantrik süre: İlk tepeden (P1) kalkışa (s). Ana itme fazının süresi.',
+          infoPhaseImpulsesTitle: 'Faz impulsları (kuvvet × zaman)',
+          infoUnweightingImpulse: 'Boşaltma impulsu: Başlangıçtan minimum kuvvete impuls (N·s). Hareketin “yükleme” kısmını temsil eder.',
+          infoBrakingImpulse: 'Frenleme impulsu: Minimum kuvvetten P1’e (N·s). Aşağı hareketi yavaşlatmak ve itmeye geçmek için uygulanan kuvvet.',
+          infoPropulsionImpulse: 'İtme impulsu: P1’den kalkışa (N·s). Yukarı ivmelenmek için uygulanan kuvvet; kalkış hızına ana katkı.',
+          infoForcesTitle: 'Anahtar noktalardaki kuvvetler',
+          infoMinForceN: 'Minimum kuvvet (N): Eksantrik minimumdaki kuvvet. Düşük değerler derin boşaltmayı gösterir.',
+          infoP1P2N: 'P1 / P2 tepe kuvveti (N): Birinci ve ikinci konsantrik tepelerdeki kuvvet. Gerekirse vücut ağırlığıyla % BW olarak ifade edilebilir.',
+          infoPeakConcentricForce: 'Tepe konsantrik kuvvet: Konsantrik fazdaki maksimum kuvvet (N). Ortalama konsantrik kuvvet o faz boyunca ortalamadır.',
+          infoDisplacementTitle: 'Yer değiştirme',
+          infoCountermovementDepth: 'Karşı hareket derinliği: Başlangıçtan itibaren maksimum aşağı kütle merkezi yer değiştirmesi (m). Daha derin karşı hareket belirli bir noktaya kadar sıçrama yüksekliğini artırabilir.',
+          infoCOMAtTakeoff: 'Kalkışta KM yer değiştirmesi: Başlangıçtan kalkışa kütle merkezinin net dikey yer değiştirmesi (m).',
+          infoAsymmetryTitle: 'Asimetri (sol vs sağ)',
+          infoAsymmetry: 'Tepe kuvvet, konsantrik impuls, eksantrik impuls ve RFD asimetrisi (%): Sol ve sağ uzuvlar arasındaki fark. %0’dan uzak değerler dengesizlik veya yaralanma riski gösterebilir; tarama ve spora dönüşte kullanılır.'
+        }
+      };
+      function getInfoHtml(lang) {
+        var s = T[lang] || T.en;
+        return '<h3 id="infoSectionTitle">' + s.infoTitle + '</h3><p>' + s.infoIntro + '</p>' +
+          '<h4>' + s.infoPhasesTitle + '</h4><p>' + s.infoPhasesIntro + '</p><ul>' +
+          '<li><strong>Quiet.</strong> ' + s.infoQuiet + '</li><li><strong>Eccentric (unloading).</strong> ' + s.infoEccUnload + '</li><li><strong>Eccentric (braking).</strong> ' + s.infoEccBrake + '</li>' +
+          '<li><strong>Concentric.</strong> ' + s.infoConcentric + '</li><li><strong>Flight.</strong> ' + s.infoFlight + '</li><li><strong>Landing.</strong> ' + s.infoLanding + '</li></ul>' +
+          '<h4>' + s.infoKpTitle + '</h4><p>' + s.infoKpIntro + '</p><ul>' +
+          '<li><strong>Start of movement.</strong> ' + s.infoOnset + '</li><li><strong>Minimum force.</strong> ' + s.infoMinForce + '</li><li><strong>P1 & P2.</strong> ' + s.infoP1P2 + '</li>' +
+          '<li><strong>Take-off.</strong> ' + s.infoTakeoff + '</li><li><strong>Landing.</strong> ' + s.infoLand + '</li></ul>' +
+          '<h4>' + s.infoMetricsTitle + '</h4><p>' + s.infoMetricsIntro + '</p>' +
+          '<h5>' + s.infoPerfTitle + '</h5><ul>' +
+          '<li><strong>Jump height (impulse–momentum).</strong> ' + s.infoJumpHeightImpulse + '</li>' +
+          '<li><strong>Jump height (flight time).</strong> ' + s.infoJumpHeightFlight + '</li>' +
+          '<li><strong>Take-off velocity.</strong> ' + s.infoTakeoffVel + '</li>' +
+          '<li><strong>Flight time.</strong> ' + s.infoFlightTime + '</li>' +
+          '<li><strong>Time to take-off.</strong> ' + s.infoTimeToTakeoff + '</li>' +
+          '<li><strong>RSI modified.</strong> ' + s.infoRsi + '</li></ul>' +
+          '<h5>' + s.infoPowerRfdTitle + '</h5><ul>' +
+          '<li><strong>Peak power.</strong> ' + s.infoPeakPower + '</li>' +
+          '<li><strong>Peak RFD.</strong> ' + s.infoPeakRfd + '</li>' +
+          '<li><strong>RFD 0–100 ms / 0–200 ms.</strong> ' + s.infoRfdEarly + '</li>' +
+          '<li><strong>Peak RFD eccentric / concentric.</strong> ' + s.infoRfdEccCon + '</li></ul>' +
+          '<h5>' + s.infoPhaseTimesTitle + '</h5><ul>' +
+          '<li><strong>Unweighting time.</strong> ' + s.infoUnweightingTime + '</li>' +
+          '<li><strong>Eccentric time.</strong> ' + s.infoEccentricTime + '</li>' +
+          '<li><strong>Concentric time.</strong> ' + s.infoConcentricTime + '</li></ul>' +
+          '<h5>' + s.infoPhaseImpulsesTitle + '</h5><ul>' +
+          '<li><strong>Unweighting impulse.</strong> ' + s.infoUnweightingImpulse + '</li>' +
+          '<li><strong>Braking impulse.</strong> ' + s.infoBrakingImpulse + '</li>' +
+          '<li><strong>Propulsion impulse.</strong> ' + s.infoPropulsionImpulse + '</li></ul>' +
+          '<h5>' + s.infoForcesTitle + '</h5><ul>' +
+          '<li><strong>Minimum force (N).</strong> ' + s.infoMinForceN + '</li>' +
+          '<li><strong>P1 / P2 peak force (N).</strong> ' + s.infoP1P2N + '</li>' +
+          '<li><strong>Peak / mean concentric force.</strong> ' + s.infoPeakConcentricForce + '</li></ul>' +
+          '<h5>' + s.infoDisplacementTitle + '</h5><ul>' +
+          '<li><strong>Countermovement depth.</strong> ' + s.infoCountermovementDepth + '</li>' +
+          '<li><strong>COM displacement at take-off.</strong> ' + s.infoCOMAtTakeoff + '</li></ul>' +
+          '<h5>' + s.infoAsymmetryTitle + '</h5><ul><li>' + s.infoAsymmetry + '</li></ul>';
+      }
+      window.applyViewerLang = function(data) {
+        var l = window.VIEWER_LANG || 'en';
+        var s = T[l] || T.en;
+        var el = function(id) { return document.getElementById(id); };
+        if (el('viewerLangLabel')) el('viewerLangLabel').textContent = s.langLabel;
+        if (el('viewerLangEn')) { el('viewerLangEn').classList.toggle('active', l === 'en'); }
+        if (el('viewerLangTr')) { el('viewerLangTr').classList.toggle('active', l === 'tr'); }
+        var title = s.title;
+        if (data && data.test_type === 'CMJ') title = (l === 'tr' ? 'CMJ Kuvvet Plakası — Faz ve Anahtar Nokta Görüntüleyici' : 'CMJ Force Plate — Phase & Key Point Viewer');
+        if (data && data.test_type === 'DJ') title = (l === 'tr' ? 'Drop Jump — Faz ve Anahtar Nokta Görüntüleyici' : 'Drop Jump — Phase & Key Point Viewer');
+        if (data && data.test_type === 'SJ') title = (l === 'tr' ? 'Squat Jump — Faz ve Anahtar Nokta Görüntüleyici' : 'Squat Jump — Phase & Key Point Viewer');
+        if (el('viewerTitle')) el('viewerTitle').textContent = title;
+        if (el('subtitle')) el('subtitle').textContent = s.subtitle;
+        if (el('labelLoadJsonText')) el('labelLoadJsonText').textContent = s.loadJson;
+        if (el('backToMyTestsBtn')) { el('backToMyTestsBtn').textContent = s.myTests; }
+        if (el('downloadPdfBtn')) el('downloadPdfBtn').textContent = s.downloadPdf;
+        if (el('emailBtn')) el('emailBtn').textContent = s.email;
+        if (el('viewAnotherBtn')) el('viewAnotherBtn').textContent = s.viewAnother;
+        if (el('compareBtn')) el('compareBtn').textContent = s.compareWith;
+        if (el('compareModalOverlay') && el('compareModalOverlay').querySelector('h3')) el('compareModalOverlay').querySelector('h3').textContent = s.selectCompare;
+        if (el('viewAnotherModalOverlay') && el('viewAnotherModalOverlay').querySelector('h3')) el('viewAnotherModalOverlay').querySelector('h3').textContent = s.selectView;
+        if (el('emailModalOverlay') && el('emailModalOverlay').querySelector('h3')) el('emailModalOverlay').querySelector('h3').textContent = s.sendEmail;
+        if (el('compareModalClose')) el('compareModalClose').textContent = s.cancel;
+        if (el('viewAnotherModalClose')) el('viewAnotherModalClose').textContent = s.cancel;
+        if (el('emailModalClose')) el('emailModalClose').textContent = s.cancel;
+        if (el('emailSendBtn')) el('emailSendBtn').textContent = s.send;
+        var panels = document.querySelectorAll('#sections .panel h2');
+        if (panels.length >= 3) { panels[0].textContent = s.phases; panels[1].textContent = s.keyPoints; panels[2].textContent = s.metrics; }
+        var pl = el('placeholder');
+        if (pl && (pl.textContent === 'Loading…' || pl.textContent === 'Yükleniyor…')) pl.textContent = s.loading;
+        if (el('validityMsg') && (el('validityMsg').textContent === 'Trial valid.' || el('validityMsg').textContent === 'Deneme geçerli.')) el('validityMsg').textContent = s.trialValid;
+        if (el('compareTrial2Title')) el('compareTrial2Title').textContent = s.trial2Chart;
+        if (el('comparePhasesTitle')) el('comparePhasesTitle').textContent = s.comparePhases;
+        if (el('compareForceTitle')) el('compareForceTitle').textContent = s.compareForce;
+        var infoEl = el('infoSection');
+        if (infoEl) { infoEl.innerHTML = getInfoHtml(l); if (infoEl.classList.contains('visible')) infoEl.style.display = 'block'; }
+      };
+      if (viewerLang === 'tr') { document.getElementById('viewerLangEn').classList.remove('active'); document.getElementById('viewerLangTr').classList.add('active'); }
+      document.getElementById('viewerLangEn').addEventListener('click', function(e) { e.preventDefault(); window.VIEWER_LANG = 'en'; localStorage.setItem('jumptest_lang', 'en'); window.applyViewerLang(primaryData); });
+      document.getElementById('viewerLangTr').addEventListener('click', function(e) { e.preventDefault(); window.VIEWER_LANG = 'tr'; localStorage.setItem('jumptest_lang', 'tr'); window.applyViewerLang(primaryData); });
+      window.VIEWER_T = T;
+      setTimeout(function() { window.applyViewerLang(); }, 0);
+    })();
+
     // Reference style: light fills, grey/orange; stronger contrast so phases are visible
     const PHASE_COLORS = {
       'Quiet': 'rgba(51, 51, 51, 0.08)',
@@ -1369,14 +1587,12 @@
         document.getElementById('chartWrap').style.display = 'block';
         document.getElementById('sections').style.display = 'flex';
         document.getElementById('placeholder').style.display = 'none';
-        var testType = data.test_type || '';
-        if (testType === 'DJ') {
-          document.querySelector('h1').textContent = 'Drop Jump — Phase & Key Point Viewer';
-        } else if (testType === 'CMJ') {
-          document.querySelector('h1').textContent = 'CMJ Force Plate — Phase & Key Point Viewer';
-        } else if (testType === 'SJ') {
-          document.querySelector('h1').textContent = 'Squat Jump — Phase & Key Point Viewer';
+        var infoSection = document.getElementById('infoSection');
+        if (infoSection) {
+          infoSection.classList.add('visible');
+          infoSection.style.display = 'block';
         }
+        if (typeof window.applyViewerLang === 'function') window.applyViewerLang(data);
         var aid = (typeof window !== 'undefined' && window.ATHLETE_ID) ? window.ATHLETE_ID : '';
         if (aid) document.getElementById('compareToolbar').style.display = 'flex';
       } catch (err) {
@@ -1454,7 +1670,10 @@
         }
 
         // 4) No data source — show placeholder with file picker instructions
-        if (placeholderEl) {
+        if (placeholderEl && window.VIEWER_T) {
+          var lang = window.VIEWER_LANG || 'en';
+          placeholderEl.innerHTML = window.VIEWER_T[lang].noDataInstruction;
+        } else if (placeholderEl) {
           placeholderEl.innerHTML = 'Load a visualization JSON file using the button above, or open with <strong>?viz_url=&lt;path&gt;</strong> in the URL.';
         }
       } catch (e) {
